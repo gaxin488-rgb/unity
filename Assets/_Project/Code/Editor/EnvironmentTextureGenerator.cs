@@ -577,43 +577,88 @@ namespace EchoesOfTheLost.EditorTools
             var pixels = new Color[size * size];
             var heights = new float[size * size];
 
+            // Đặt màu nền trong suốt có RGB trùng màu lá để chống viền đen (alpha bleeding) ở mép lá
+            Color clearLeafBg = new Color(0.18f, 0.42f, 0.12f, 0f);
             for (int i = 0; i < pixels.Length; i++)
             {
-                pixels[i] = Color.clear;
+                pixels[i] = clearLeafBg;
                 heights[i] = 0f;
             }
 
-            // Vẽ 95 chiếc lá hình mũi mác (lanceolate leaves) xếp chồng từ lớp lá tối bên trong ra lớp lá sáng ngoài rìa
-            var rng = new System.Random(1337);
+            var rng = new System.Random(2026);
             Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
-            int totalLeaves = 95;
 
-            Color deepShadowGreen = new Color(0.10f, 0.27f, 0.08f, 1f);
-            Color midForestGreen  = new Color(0.20f, 0.48f, 0.14f, 1f);
-            Color sunlitTipGreen  = new Color(0.42f, 0.70f, 0.22f, 1f);
-
-            for (int i = 0; i < totalLeaves; i++)
+            // 1. Vẽ các nhánh gỗ dăm nhỏ (fine wooden twigs) tỏa ra thành 7 chùm lá nhỏ có khe hở bầu trời ở giữa
+            Vector2[] bouquetCenters =
             {
-                float layerT = (float)i / (totalLeaves - 1);
-                float angle = i * 2.39996f + (float)(rng.NextDouble() * 0.35 - 0.175);
-                // Các lá phân bố tỏa tròn, chừa phần rìa ngoài thành từng chóp lá nhọn tự nhiên
-                float radius = Mathf.Sqrt((float)rng.NextDouble()) * (size * 0.36f);
+                new Vector2(0.50f, 0.52f),
+                new Vector2(0.27f, 0.36f),
+                new Vector2(0.73f, 0.36f),
+                new Vector2(0.24f, 0.66f),
+                new Vector2(0.76f, 0.66f),
+                new Vector2(0.50f, 0.80f),
+                new Vector2(0.50f, 0.24f)
+            };
 
-                Vector2 leafPos = center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-                float leafDirAngle = angle + (float)(rng.NextDouble() * 0.7 - 0.35);
+            Color twigColor = new Color(0.26f, 0.17f, 0.10f, 1f);
+            for (int b = 0; b < bouquetCenters.Length; b++)
+            {
+                Vector2 start = center;
+                Vector2 end = bouquetCenters[b] * size;
+                int steps = 45;
+                for (int s = 0; s <= steps; s++)
+                {
+                    float t = (float)s / steps;
+                    Vector2 pt = Vector2.Lerp(start, end, t);
+                    pt.x += Mathf.Sin(t * Mathf.PI * 2f + b) * 3.5f;
+                    int r = (t < 0.5f) ? 2 : 1;
+                    for (int dy = -r; dy <= r; dy++)
+                    {
+                        for (int dx = -r; dx <= r; dx++)
+                        {
+                            int px = Mathf.Clamp(Mathf.RoundToInt(pt.x) + dx, 0, size - 1);
+                            int py = Mathf.Clamp(Mathf.RoundToInt(pt.y) + dy, 0, size - 1);
+                            pixels[py * size + px] = twigColor;
+                            heights[py * size + px] = 0.25f;
+                        }
+                    }
+                }
+            }
+
+            // 2. Vẽ 380 chiếc lá sồi nhỏ (chỉ dài ~10-14 pixel) bám quanh 7 chùm cành dăm, chừa các khe thoáng tự nhiên
+            Color deepShadowGreen = new Color(0.11f, 0.29f, 0.09f, 1f);
+            Color midForestGreen  = new Color(0.22f, 0.50f, 0.15f, 1f);
+            Color sunlitTipGreen  = new Color(0.45f, 0.72f, 0.23f, 1f);
+
+            int totalSmallLeaves = 380;
+            for (int i = 0; i < totalSmallLeaves; i++)
+            {
+                float layerT = (float)i / (totalSmallLeaves - 1);
+                Vector2 hub = bouquetCenters[i % bouquetCenters.Length] * size;
+
+                float localAngle = (float)(rng.NextDouble() * Mathf.PI * 2.0);
+                // Phân bố quanh mỗi chùm phụ để tạo khe hở (sky fenestration) giữa các chùm
+                float localDist = Mathf.Sqrt((float)rng.NextDouble()) * (size * 0.17f);
+                Vector2 leafPos = hub + new Vector2(Mathf.Cos(localAngle), Mathf.Sin(localAngle)) * localDist;
+
+                // Giữ lá nằm gọn trong vùng an toàn của Texture (không chạm mép vuông của Quad)
+                if (Vector2.Distance(leafPos, center) > size * 0.43f) continue;
+
+                float leafDirAngle = localAngle + (float)(rng.NextDouble() * 0.9 - 0.45);
                 float cosA = Mathf.Cos(leafDirAngle);
                 float sinA = Mathf.Sin(leafDirAngle);
 
-                float leafLen = size * (0.11f + (float)rng.NextDouble() * 0.05f);
-                float leafWid = leafLen * (0.48f + (float)rng.NextDouble() * 0.12f);
+                // Kích thước mỗi chiếc lá nhỏ gọn (chỉ bằng 1/4 lá cũ)
+                float leafLen = size * (0.026f + (float)rng.NextDouble() * 0.014f);
+                float leafWid = leafLen * (0.52f + (float)rng.NextDouble() * 0.14f);
 
-                Color baseLeafCol = Color.Lerp(deepShadowGreen, midForestGreen, layerT * 0.85f);
-                Color tipLeafCol  = Color.Lerp(midForestGreen, sunlitTipGreen, layerT);
+                Color baseCol = Color.Lerp(deepShadowGreen, midForestGreen, layerT * 0.85f);
+                Color tipCol  = Color.Lerp(midForestGreen, sunlitTipGreen, layerT);
 
-                int minX = Mathf.Max(0, Mathf.FloorToInt(leafPos.x - leafLen - 2));
-                int maxX = Mathf.Min(size - 1, Mathf.CeilToInt(leafPos.x + leafLen + 2));
-                int minY = Mathf.Max(0, Mathf.FloorToInt(leafPos.y - leafLen - 2));
-                int maxY = Mathf.Min(size - 1, Mathf.CeilToInt(leafPos.y + leafLen + 2));
+                int minX = Mathf.Max(1, Mathf.FloorToInt(leafPos.x - leafLen * 1.2f));
+                int maxX = Mathf.Min(size - 2, Mathf.CeilToInt(leafPos.x + leafLen * 1.2f));
+                int minY = Mathf.Max(1, Mathf.FloorToInt(leafPos.y - leafLen * 1.2f));
+                int maxY = Mathf.Min(size - 2, Mathf.CeilToInt(leafPos.y + leafLen * 1.2f));
 
                 for (int y = minY; y <= maxY; y++)
                 {
@@ -622,29 +667,28 @@ namespace EchoesOfTheLost.EditorTools
                         float dx = x - leafPos.x;
                         float dy = y - leafPos.y;
 
-                        // Tọa độ cục bộ dọc theo thân chiếc lá (lx: dọc gân lá, ly: ngang phiến lá)
                         float lx = (dx * cosA + dy * sinA) / leafLen;
                         float ly = (-dx * sinA + dy * cosA) / leafWid;
 
                         if (lx < -0.85f || lx > 1.0f) continue;
 
-                        // Đường viền chiếc lá nhọn ở đầu (lx = 1) và bầu ở gốc
-                        float normL = (lx + 0.85f) / 1.85f; // 0..1
-                        float leafProfile = Mathf.Sin(normL * Mathf.PI) * (1.15f - 0.35f * normL);
+                        float normL = (lx + 0.85f) / 1.85f;
+                        // Viền lá sồi hơi lượn sóng nhẹ (oak lobes)
+                        float lobeWave = 1f + 0.14f * Mathf.Sin(normL * Mathf.PI * 5f);
+                        float profile = Mathf.Sin(normL * Mathf.PI) * (1.1f - 0.25f * normL) * lobeWave;
 
-                        if (Mathf.Abs(ly) <= leafProfile)
+                        if (Mathf.Abs(ly) <= profile)
                         {
-                            float edgeDist = 1f - Mathf.Abs(ly) / Mathf.Max(0.001f, leafProfile);
-                            float centerVein = Mathf.Clamp01(1f - Mathf.Abs(ly) * 2.5f);
+                            float edgeDist = 1f - Mathf.Abs(ly) / Mathf.Max(0.001f, profile);
+                            float vein = Mathf.Clamp01(1f - Mathf.Abs(ly) * 2.8f);
 
-                            Color col = Color.Lerp(baseLeafCol, tipLeafCol, normL * 0.75f + centerVein * 0.25f);
-                            // Viền tối nhẹ (Ambient Occlusion giữa các phiến lá) để tách biệt từng chiếc lá
-                            col *= (0.82f + 0.22f * edgeDist);
+                            Color col = Color.Lerp(baseCol, tipCol, normL * 0.7f + vein * 0.3f);
+                            col *= (0.80f + 0.24f * edgeDist);
                             col.a = 1f;
 
                             int idx = y * size + x;
                             pixels[idx] = col;
-                            heights[idx] = Mathf.Clamp01(0.3f + layerT * 0.4f + edgeDist * 0.3f);
+                            heights[idx] = Mathf.Clamp01(0.3f + layerT * 0.45f + edgeDist * 0.25f);
                         }
                     }
                 }
@@ -652,9 +696,8 @@ namespace EchoesOfTheLost.EditorTools
 
             WritePngCustom(albedoPath, pixels, size, size);
 
-            // Tạo Normal Map nổi khối nhẹ cho từng phiến lá
             var normals = new Color[size * size];
-            float normalStrength = 2.0f;
+            float normalStrength = 2.2f;
             for (int y = 0; y < size; y++)
             {
                 int yUp = Mathf.Min(size - 1, y + 1);

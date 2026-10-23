@@ -628,6 +628,81 @@ namespace EchoesOfTheLost.EditorTools
             td.SetDetailLayer(0, 0, 2, redMap);
             td.SetDetailLayer(0, 0, 3, blueMap);
             td.SetDetailLayer(0, 0, 4, purpleMap);
+
+            UpgradeStandaloneSceneTrees(envMats);
+        }
+
+        // Tự động tìm và nâng cấp mọi GameObject cây rời ven đường / quanh di tích trong Scene
+        public static void UpgradeStandaloneSceneTrees(EnvironmentMaterialSet envMats)
+        {
+            Mesh[] oakMeshes =
+            {
+                AssetDatabase.LoadAssetAtPath<Mesh>($"{TerrainDir}/Mesh_VerdaOakTree_A.asset"),
+                AssetDatabase.LoadAssetAtPath<Mesh>($"{TerrainDir}/Mesh_VerdaOakTree_B.asset"),
+                AssetDatabase.LoadAssetAtPath<Mesh>($"{TerrainDir}/Mesh_VerdaOakTree_C.asset")
+            };
+            Mesh pineMesh = AssetDatabase.LoadAssetAtPath<Mesh>($"{TerrainDir}/Mesh_VerdaPineTree_A.asset");
+
+            if (oakMeshes[0] == null) return;
+
+            var allRenderers = Object.FindObjectsByType<MeshRenderer>(FindObjectsSortMode.None);
+            var upgradedRoots = new HashSet<Transform>();
+            int counter = 0;
+
+            foreach (var mr in allRenderers)
+            {
+                if (mr == null || mr.gameObject == null) continue;
+                var mats = mr.sharedMaterials;
+                if (mats == null || mats.Length == 0) continue;
+
+                // Trường hợp 1: Cây rời đã gộp thành 1 Mesh có 2 Material (Trunk + Leaves)
+                if (mats.Length == 2 && mats[0] != null && mats[1] != null &&
+                    mats[0].name.Contains("TreeTrunk") && mats[1].name.Contains("TreeLeaves"))
+                {
+                    var mf = mr.GetComponent<MeshFilter>();
+                    if (mf != null)
+                    {
+                        bool isPine = mr.gameObject.name.ToLowerInvariant().Contains("pine");
+                        mf.sharedMesh = isPine ? pineMesh : oakMeshes[counter % oakMeshes.Length];
+                        mr.sharedMaterials = new[] { envMats.TreeTrunk, envMats.TreeLeaves };
+                        counter++;
+                    }
+                    continue;
+                }
+
+                // Trường hợp 2: Cây rời tạo từ nhiều khối Cylinder / Quad con ghép trong 1 GameObject cha
+                if (mats.Length == 1 && mats[0] != null &&
+                    (mats[0].name.Contains("TreeTrunk") || mats[0].name.Contains("TreeLeaves")))
+                {
+                    Transform candidate = mr.transform;
+                    while (candidate.parent != null &&
+                           (candidate.parent.name.ToLowerInvariant().Contains("tree") ||
+                            candidate.parent.name.ToLowerInvariant().Contains("oak") ||
+                            candidate.parent.name.ToLowerInvariant().Contains("pine") ||
+                            candidate.parent.name.ToLowerInvariant().Contains("branch") ||
+                            candidate.parent.name.ToLowerInvariant().Contains("canopy")) &&
+                           candidate.parent.childCount < 40)
+                    {
+                        candidate = candidate.parent;
+                    }
+
+                    if (candidate != mr.transform && !upgradedRoots.Contains(candidate))
+                    {
+                        upgradedRoots.Add(candidate);
+                        for (int c = candidate.childCount - 1; c >= 0; c--)
+                        {
+                            Object.DestroyImmediate(candidate.GetChild(c).gameObject);
+                        }
+
+                        var mf = candidate.GetComponent<MeshFilter>() ?? candidate.gameObject.AddComponent<MeshFilter>();
+                        var rootMr = candidate.GetComponent<MeshRenderer>() ?? candidate.gameObject.AddComponent<MeshRenderer>();
+                        bool isPine = candidate.name.ToLowerInvariant().Contains("pine");
+                        mf.sharedMesh = isPine ? pineMesh : oakMeshes[counter % oakMeshes.Length];
+                        rootMr.sharedMaterials = new[] { envMats.TreeTrunk, envMats.TreeLeaves };
+                        counter++;
+                    }
+                }
+            }
         }
 
         // ── Asset Persistence Helper ─────────────────────────

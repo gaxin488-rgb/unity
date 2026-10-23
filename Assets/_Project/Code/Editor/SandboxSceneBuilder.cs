@@ -472,6 +472,9 @@ namespace EchoesOfTheLost.EditorTools
                 envRoot, matStone, matRock,
                 matGrassTuft, envMats.FlowerStem, envMats.FlowerYellow, envMats.FlowerRed, envMats.FlowerBlue, envMats.FlowerPurple,
                 matTreeTrunk, matTreeLeaves);
+
+            // 8. Tự động nâng cấp & đồng bộ toàn bộ cây trong cảnh với Mesh Sồi uốn cong & tán lá dăm nhỏ mới
+            TerrainWorldBuilder.UpgradeStandaloneSceneTrees(envMats);
         }
 
         private static void CreateTerracedEarthBlock(string name, Transform parent, Vector3 pos, Vector3 scale, Material earthMat, Material grassMat)
@@ -657,16 +660,39 @@ namespace EchoesOfTheLost.EditorTools
 
         private static void CreateStylizedTree(string name, Transform parent, Vector3 pos, Material trunkMat, Material leafMat)
         {
-            var root = new GameObject(name).transform;
-            root.SetParent(parent, false);
-            root.position = pos;
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
 
-            // Dùng seed dựa trên tên & vị trí để cây giữ nguyên hình thái ổn định, tự nhiên
-            int seed = name.GetHashCode() ^ Mathf.RoundToInt(pos.x * 73f + pos.z * 137f);
-            Random.InitState(seed);
+            int seed = Mathf.Abs(name.GetHashCode() ^ Mathf.RoundToInt(pos.x * 73f + pos.z * 137f));
+            string[] oakNames = { "Mesh_VerdaOakTree_A.asset", "Mesh_VerdaOakTree_B.asset", "Mesh_VerdaOakTree_C.asset" };
+            string chosenMesh = oakNames[seed % oakNames.Length];
+            if (name.ToLowerInvariant().Contains("pine")) chosenMesh = "Mesh_VerdaPineTree_A.asset";
 
-            // Bắt đầu đệ quy từ thân chính (Cấp 0) -> Cành lớn (Cấp 1) -> Cành nhỡ (Cấp 2) -> Nhánh con (Cấp 3)
-            BuildBranch(root, Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f, depth: 0, maxDepth: 3, trunkMat, leafMat);
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>($"Assets/_Project/Data/Terrain/{chosenMesh}");
+            if (mesh != null)
+            {
+                var mf = go.AddComponent<MeshFilter>();
+                mf.sharedMesh = mesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterials = new[] { trunkMat, leafMat };
+
+                float yaw = (seed % 360);
+                float scale = 0.95f + (seed % 20) * 0.015f;
+                go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+                go.transform.localScale = Vector3.one * scale;
+
+                var col = go.AddComponent<CapsuleCollider>();
+                col.center = new Vector3(0f, 2.5f, 0f);
+                col.height = 5f;
+                col.radius = 0.45f;
+            }
+            else
+            {
+                // Fallback nếu chưa bake mesh asset
+                Random.InitState(seed);
+                BuildBranch(go.transform, Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f, depth: 0, maxDepth: 3, trunkMat, leafMat);
+            }
         }
 
         private static void CreateRoadsideWallAndFlowers(
