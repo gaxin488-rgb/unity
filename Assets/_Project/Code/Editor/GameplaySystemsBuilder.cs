@@ -315,6 +315,7 @@ namespace EchoesOfTheLost.EditorTools
             wall.GetComponent<Renderer>().sharedMaterial = stoneMat;
             var wallMarker = wall.AddComponent<PlaceholderObjectMarker>();
             wallMarker.ConfigurePlaceholder("COVER_WALL_01", PlaceholderArchetype.TacticalCoverWall, wall.transform.localScale, "Stone", Color.blue);
+            wall.SetActive(false); // [Tập trung map] Tạm ẩn chướng ngại vật combat để tầm nhìn quang đãng
 
             // 4. Wooden Supply Crates (Loot & obstacle testing)
             var crateCluster = new GameObject("Blockout_SupplyCrates").transform;
@@ -376,6 +377,7 @@ namespace EchoesOfTheLost.EditorTools
 
             var dummyMarker = dummyGO.AddComponent<PlaceholderObjectMarker>();
             dummyMarker.ConfigurePlaceholder("TARGET_DUMMY_01", PlaceholderArchetype.CombatTargetDummy, new Vector3(1.2f, 2.1f, 1.2f), "Wood", Color.red);
+            dummyGO.SetActive(false); // [Tập trung map] Tạm ẩn bia tập combat để quang đãng map
         }
 
         // ── 3. Gameplay Trigger Volumes ─────────────────────────────────────
@@ -543,18 +545,27 @@ namespace EchoesOfTheLost.EditorTools
                 hilt.GetComponent<Renderer>().sharedMaterial = hiltMat;
                 Object.DestroyImmediate(hilt.GetComponent<Collider>());
 
-                fpViewModel.SetActive(false); // Hidden by default (starts in 3rd person)
+                fpViewModel.SetActive(false); // [Tập trung map] Tạm ẩn blade viewmodel
+            }
+            else
+            {
+                fpViewModel.SetActive(false);
             }
 
             var modelTransform = player.transform.Find("Model");
             var bodyModel = modelTransform != null ? modelTransform.gameObject : null;
+            if (bodyModel != null)
+            {
+                bodyModel.SetActive(false); // [Tập trung map] Tạm ẩn model nhân vật
+            }
 
             if (!player.TryGetComponent<FirstPersonController>(out var fpc))
             {
                 fpc = player.AddComponent<FirstPersonController>();
             }
 
-            fpc.ConfigureReferences(eyeMount, mainCam, tpCam, bodyModel, fpViewModel);
+            // Truyền null cho bodyModel và fpViewModel để khi chuyển đổi camera không bị hiện lại
+            fpc.ConfigureReferences(eyeMount, mainCam, tpCam, null, null);
         }
 
         private static Material CreateOrLoadMaterial(string fileName, Color baseColor, Color? emission = null)

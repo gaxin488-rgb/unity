@@ -125,6 +125,7 @@
 | Bụi cỏ Alpha Cutout & Crossed-Quads (Tạo ngọn cỏ nhọn tự nhiên, nền trong suốt `Color.clear`, URP Alpha Clipping `_AlphaClip = 1f`, double-sided) | ✅ Done | `EnvironmentTextureGenerator.cs`, `TerrainWorldBuilder.cs`, `SandboxSceneBuilder.cs` |
 | Cây cao nhiều nhánh đệ quy & Tán lá Crossed Quads cắt Alpha (Hết ô tròn, texture lá viền răng cưa trong suốt, hàm `BuildBranch` đệ quy 4 cấp, URP Alpha Cutout `_Cull = Off`) | ✅ Done | `EnvironmentTextureGenerator.cs`, `SandboxSceneBuilder.cs`, `TerrainWorldBuilder.cs` |
 | 95 Lá Mũi Mác Xếp Lớp & Cây Uốn Cong Tự Nhiên (`AppendCurvedTaperedBranch`, 5 Biến thể Sồi/Thông, Arched Dome Leaf Cards & Spherical Outward Normals) | ✅ Done | `TerrainWorldBuilder.cs`, `EnvironmentTextureGenerator.cs` |
+| Khảo Sát Cảnh Quan Map Thuần Khiết (Tạm ẩn capsule nhân vật, viewmodel kiếm FP, Guardian enemies, NPC Elder Maren, Dummy bia tập, tường combat, tắt CombatManager; cho phép di chuyển WASD tự do với tầm nhìn quang đãng 100%) | ✅ Done | `SandboxSceneBuilder.cs`, `GameplaySystemsBuilder.cs`, `Sandbox.unity` |
 
 ---
 

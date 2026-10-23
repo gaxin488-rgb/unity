@@ -318,6 +318,7 @@ namespace EchoesOfTheLost.EditorTools
             model.transform.localPosition = new Vector3(0f, 1f, 0f);
             model.GetComponent<Renderer>().sharedMaterial = matPlayer;
             Object.DestroyImmediate(model.GetComponent<Collider>());
+            model.SetActive(false); // [Tập trung map] Tạm ẩn model nhân vật để quan sát cảnh quan thoáng đãng
 
             var rb = player.AddComponent<Rigidbody>();
             rb.mass = 1f;
@@ -341,6 +342,7 @@ namespace EchoesOfTheLost.EditorTools
             player.AddComponent<ProgressionSystem>();
 
             var combat = player.AddComponent<CombatManager>();
+            combat.enabled = false; // [Tập trung map] Tạm tắt combat để tập trung khám phá thế giới
             SetLayerMask(combat, "_hitLayerMask", -1);
 
             // ── 9. Main Camera & Orbit Follow ──
@@ -845,6 +847,7 @@ namespace EchoesOfTheLost.EditorTools
             so.FindProperty("_displayName").stringValue = "Elder Maren";
             so.FindProperty("_questToOfferId").stringValue = "quest_first_echo";
             so.ApplyModifiedPropertiesWithoutUndo();
+            npc.SetActive(false); // [Tập trung map] Tạm ẩn NPC để tập trung vào cảnh quan map
         }
 
         private static void CreateGuardianEnemy(string name, Vector3 pos, Vector3[] waypoints, AnimatorController controller, Material mat, Transform envRoot)
@@ -890,6 +893,7 @@ namespace EchoesOfTheLost.EditorTools
             for (int i = 0; i < wpTransforms.Length; i++)
                 pts.GetArrayElementAtIndex(i).objectReferenceValue = wpTransforms[i];
             so.ApplyModifiedPropertiesWithoutUndo();
+            enemy.SetActive(false); // [Tập trung map] Tạm ẩn kẻ địch để tập trung vào cảnh quan map
         }
 
         private static void ConfigureWatchtowerPOI(POIManager poiMgr)
