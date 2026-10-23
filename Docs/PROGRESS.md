@@ -111,6 +111,20 @@
 
 ---
 
+## Phase 7 — Scenic Nature: Branching Trees, Undulating Hills & 4-Color Wildflowers ✅
+
+| Task | Status | File |
+|------|--------|------|
+| `BuildCombinedTreeMesh` (Cây cối phân nhánh: Thân chính, 4 nhánh bough, 10 cành phụ & 22 tán lá nhỏ thoáng đãng) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
+| `SculptVerdaWildsHeightmap` (Thảm cỏ trải dài cao thấp: Thuật toán sóng giao thoa đa tần số nhấp nhô $2\text{m} - 6\text{m}$) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
+| `BuildFlowerClusterMesh` (Khóm hoa đa tầng: Submesh 0 cánh hoa sắc màu, Submesh 1 cành lá xanh mướt) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
+| `EnvironmentTextureGenerator` (4 vật liệu hoa PBR URP Lit bão hòa: Vàng, Đỏ, Xanh, Tím + Cuống xanh) | ✅ Done | `Assets/_Project/Code/Editor/EnvironmentTextureGenerator.cs` |
+| `TerrainWorldBuilder` (5 DetailPrototypes & phân bố mật độ tế bào Perlin trên TerrainData) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
+| `CreateRoadsideWallAndFlowers` (Bờ tường đá cuội mộc mạc và dải hoa dại ôm chân tường phỏng theo *Slow Roads*) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
+| 4 Prefabs Hoa Dại 3D (`PF_FlowerCluster_Yellow`, `_Red`, `_Blue`, `_Purple`) | ✅ Done | `Assets/_Project/Prefabs/Environment/` |
+
+---
+
 ## 🎮 Hướng Dẫn Điều Khiển Trong Play Mode (`Sandbox.unity`)
 
 - **Di chuyển & Hành động:** `WASD` Di chuyển | `Mouse` Xoay Camera | `Shift` Chạy nhanh (Footstep cadence tăng tốc) | `Space` Nhảy | `Ctrl` Lộn né (Roll)
