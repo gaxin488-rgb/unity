@@ -137,11 +137,30 @@ namespace EchoesOfTheLost.EditorTools
             const string rpDir = "Assets/_Project/Settings/Rendering";
             Directory.CreateDirectory(rpDir);
             const string assetPath = rpDir + "/EotL_URP_Asset.asset";
+            const string rendererPath = rpDir + "/EotL_URP_Renderer.asset";
+
             var urpAsset = AssetDatabase.LoadAssetAtPath<UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset>(assetPath);
-            if (urpAsset == null)
+            if (urpAsset == null || urpAsset.scriptableRenderer == null)
             {
+                if (urpAsset != null)
+                    AssetDatabase.DeleteAsset(assetPath);
+                if (AssetDatabase.LoadAssetAtPath<Object>(rendererPath) != null)
+                    AssetDatabase.DeleteAsset(rendererPath);
+
                 urpAsset = UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset.Create();
+                var so = new SerializedObject(urpAsset);
+                var prop = so.FindProperty("m_RendererDataList");
+                if (prop != null && prop.arraySize > 0)
+                {
+                    var rendererObj = prop.GetArrayElementAtIndex(0).objectReferenceValue;
+                    if (rendererObj != null && !EditorUtility.IsPersistent(rendererObj))
+                    {
+                        rendererObj.name = "EotL_URP_Renderer";
+                        AssetDatabase.CreateAsset(rendererObj, rendererPath);
+                    }
+                }
                 AssetDatabase.CreateAsset(urpAsset, assetPath);
+                AssetDatabase.SaveAssets();
             }
 
             if (UnityEngine.Rendering.GraphicsSettings.defaultRenderPipeline != urpAsset)
@@ -156,6 +175,11 @@ namespace EchoesOfTheLost.EditorTools
                     QualitySettings.renderPipeline = urpAsset;
             }
             QualitySettings.SetQualityLevel(origQ, false);
+        }
+
+        private static float SmoothRange(float edge0, float edge1, float x)
+        {
+            return Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(edge0, edge1, x));
         }
 
         // ── Procedural Surface Samplers (Seamless Toroidal UV) ──
@@ -174,9 +198,9 @@ namespace EchoesOfTheLost.EditorTools
             Color sunTip = new Color(0.48f, 0.72f, 0.26f);
             Color cloverSoil = new Color(0.24f, 0.30f, 0.15f);
 
-            Color c = Color.Lerp(deepGreen, lushGreen, Mathf.SmoothStep(0.2f, 0.8f, macro));
-            c = Color.Lerp(c, sunTip, Mathf.SmoothStep(0.55f, 0.92f, blades * 0.7f + mid * 0.3f));
-            c = Color.Lerp(c, cloverSoil, Mathf.SmoothStep(0.72f, 0.95f, 1f - mid) * 0.35f);
+            Color c = Color.Lerp(deepGreen, lushGreen, SmoothRange(0.2f, 0.8f, macro));
+            c = Color.Lerp(c, sunTip, SmoothRange(0.55f, 0.92f, blades * 0.7f + mid * 0.3f));
+            c = Color.Lerp(c, cloverSoil, SmoothRange(0.72f, 0.95f, 1f - mid) * 0.35f);
 
             height = Mathf.Clamp01(blades * 0.55f + mid * 0.30f + macro * 0.15f);
             albedo = new Color(c.r, c.g, c.b, 0.18f);
@@ -195,9 +219,9 @@ namespace EchoesOfTheLost.EditorTools
             Color pebbleCol = new Color(0.52f, 0.49f, 0.45f);
 
             Color c = Color.Lerp(darkLoam, warmDirt, baseSoil);
-            c = Color.Lerp(c, dryClay, Mathf.SmoothStep(0.45f, 0.85f, crumbs) * 0.6f);
+            c = Color.Lerp(c, dryClay, SmoothRange(0.45f, 0.85f, crumbs) * 0.6f);
 
-            float pebbleMask = Mathf.SmoothStep(0.74f, 0.88f, pebbles) * Mathf.SmoothStep(0.05f, 0.20f, edgeDist);
+            float pebbleMask = SmoothRange(0.74f, 0.88f, pebbles) * SmoothRange(0.05f, 0.20f, edgeDist);
             c = Color.Lerp(c, pebbleCol, pebbleMask * 0.7f);
 
             height = Mathf.Clamp01(baseSoil * 0.3f + crumbs * 0.45f + pebbleMask * 0.25f);
@@ -211,7 +235,7 @@ namespace EchoesOfTheLost.EditorTools
             float stoneGrain = TileFBM(u, v, 12, 12, 411.9f);
             float dirtWear = TileFBM(u, v, 4, 4, 509.1f);
 
-            float stoneMask = Mathf.SmoothStep(0.05f, 0.15f, mortarDist);
+            float stoneMask = SmoothRange(0.05f, 0.15f, mortarDist);
 
             Color mortarDirt = new Color(0.24f, 0.18f, 0.13f);
             Color warmCobble = new Color(0.68f, 0.57f, 0.44f);
@@ -219,7 +243,7 @@ namespace EchoesOfTheLost.EditorTools
             Color goldCobble = new Color(0.76f, 0.65f, 0.50f);
 
             Color stoneCol = Color.Lerp(warmCobble, coolCobble, cellId);
-            stoneCol = Color.Lerp(stoneCol, goldCobble, Mathf.SmoothStep(0.5f, 0.9f, stoneGrain) * 0.6f);
+            stoneCol = Color.Lerp(stoneCol, goldCobble, SmoothRange(0.5f, 0.9f, stoneGrain) * 0.6f);
             stoneCol *= (0.88f + 0.24f * stoneGrain);
 
             Color c = Color.Lerp(mortarDirt, stoneCol, stoneMask);
@@ -235,7 +259,7 @@ namespace EchoesOfTheLost.EditorTools
             float detail = TileFBM(u, v, 12, 12, 719.0f);
             float mossNoise = TileFBM(u, v, 4, 4, 823.6f);
 
-            float crackMask = Mathf.SmoothStep(0.03f, 0.12f, crackDist);
+            float crackMask = SmoothRange(0.03f, 0.12f, crackDist);
 
             Color crevice = new Color(0.16f, 0.18f, 0.21f);
             Color darkSlate = new Color(0.42f, 0.45f, 0.50f);
@@ -245,7 +269,7 @@ namespace EchoesOfTheLost.EditorTools
             Color rockCol = Color.Lerp(darkSlate, lightGranite, facets * 0.55f + detail * 0.45f);
             Color c = Color.Lerp(crevice, rockCol, crackMask);
 
-            float mossMask = Mathf.SmoothStep(0.72f, 0.92f, mossNoise) * (1f - crackMask);
+            float mossMask = SmoothRange(0.72f, 0.92f, mossNoise) * (1f - crackMask);
             c = Color.Lerp(c, lichenMoss, mossMask * 0.5f);
 
             height = Mathf.Clamp01(crackMask * (0.55f + 0.40f * detail));
@@ -260,8 +284,8 @@ namespace EchoesOfTheLost.EditorTools
             float rowV = Mathf.Repeat(v * rows, 1f);
             float offsetU = Mathf.Repeat(u * 2f + (rowIndex % 2f) * 0.5f, 1f);
 
-            float bevelU = Mathf.SmoothStep(0.0f, 0.06f, offsetU) * Mathf.SmoothStep(0.0f, 0.06f, 1f - offsetU);
-            float bevelV = Mathf.SmoothStep(0.0f, 0.08f, rowV) * Mathf.SmoothStep(0.0f, 0.08f, 1f - rowV);
+            float bevelU = SmoothRange(0.0f, 0.06f, offsetU) * SmoothRange(0.0f, 0.06f, 1f - offsetU);
+            float bevelV = SmoothRange(0.0f, 0.08f, rowV) * SmoothRange(0.0f, 0.08f, 1f - rowV);
             float blockMask = bevelU * bevelV;
 
             float weathering = TileFBM(u, v, 8, 8, 915.3f);
@@ -292,8 +316,8 @@ namespace EchoesOfTheLost.EditorTools
             Color alpineMoss = new Color(0.30f, 0.43f, 0.27f);
 
             Color c = Color.Lerp(deepBasalt, cliffGrey, crags);
-            c = Color.Lerp(c, ochreLayer, Mathf.SmoothStep(0.55f, 0.85f, strata) * 0.55f);
-            c = Color.Lerp(c, alpineMoss, Mathf.SmoothStep(0.70f, 0.92f, ridges * strata) * 0.40f);
+            c = Color.Lerp(c, ochreLayer, SmoothRange(0.55f, 0.85f, strata) * 0.55f);
+            c = Color.Lerp(c, alpineMoss, SmoothRange(0.70f, 0.92f, ridges * strata) * 0.40f);
 
             height = Mathf.Clamp01(strata * 0.35f + crags * 0.40f + (1f - ridges) * 0.25f);
             albedo = new Color(c.r, c.g, c.b, 0.16f);
@@ -311,10 +335,10 @@ namespace EchoesOfTheLost.EditorTools
             Color sunlitRidge = new Color(0.49f, 0.34f, 0.21f);
             Color barkMoss = new Color(0.25f, 0.39f, 0.19f);
 
-            float ridgeMask = Mathf.SmoothStep(0.25f, 0.78f, verticalGrooves);
+            float ridgeMask = SmoothRange(0.25f, 0.78f, verticalGrooves);
             Color c = Color.Lerp(deepFissure, midBark, ridgeMask);
-            c = Color.Lerp(c, sunlitRidge, Mathf.SmoothStep(0.6f, 0.9f, plates * ridgeMask));
-            c = Color.Lerp(c, barkMoss, Mathf.SmoothStep(0.75f, 0.95f, plates) * 0.25f);
+            c = Color.Lerp(c, sunlitRidge, SmoothRange(0.6f, 0.9f, plates * ridgeMask));
+            c = Color.Lerp(c, barkMoss, SmoothRange(0.75f, 0.95f, plates) * 0.25f);
 
             height = Mathf.Clamp01(ridgeMask * 0.75f + plates * 0.25f);
             albedo = new Color(c.r, c.g, c.b, 0.12f);
@@ -330,9 +354,9 @@ namespace EchoesOfTheLost.EditorTools
             Color midEmerald = new Color(0.20f, 0.50f, 0.22f);
             Color sunlitLeaf = new Color(0.42f, 0.70f, 0.28f);
 
-            float leafMask = Mathf.SmoothStep(0.05f, 0.35f, leafEdge);
+            float leafMask = SmoothRange(0.05f, 0.35f, leafEdge);
             Color c = Color.Lerp(shadowCanopy, midEmerald, leafMask);
-            c = Color.Lerp(c, sunlitLeaf, Mathf.SmoothStep(0.45f, 0.88f, cluster * 0.6f + subLeaf * 0.4f) * leafMask);
+            c = Color.Lerp(c, sunlitLeaf, SmoothRange(0.45f, 0.88f, cluster * 0.6f + subLeaf * 0.4f) * leafMask);
 
             height = Mathf.Clamp01(leafMask * (0.6f + 0.4f * subLeaf));
             albedo = new Color(c.r, c.g, c.b, 0.16f);
@@ -468,6 +492,7 @@ namespace EchoesOfTheLost.EditorTools
 
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
+            mat.enableInstancing = true;
 
             EditorUtility.SetDirty(mat);
             return mat;

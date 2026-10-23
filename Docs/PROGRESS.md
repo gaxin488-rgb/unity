@@ -84,7 +84,9 @@
 | `HUDController` (HP/Stamina, Level/XP/Gold, Đồng hồ/Thời tiết, Quest Tracker, Prompt `[E]`, Hộp thoại, Toast) | ✅ Done | `Assets/_Project/Code/UI/HUDController.cs` |
 | `UIManager` (Cửa sổ Túi đồ `[Tab/I]`, Nhật ký Nhiệm vụ `[J]`, Nhân vật & Phe phái `[K]`, Pause & Sandbox `[Esc]`) | ✅ Done | `Assets/_Project/Code/UI/UIManager.cs` |
 | `MiniMapSystem` | ✅ Done | `Assets/_Project/Code/UI/MiniMapSystem.cs` |
-| `SandboxSceneBuilder` (`v2_verda_wilds` — tự động dựng toàn bộ Vertical Slice & Materials) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
+| `EnvironmentTextureGenerator` (16 PBR Textures `Albedo + Normal`, 10 URP Materials, 5 `TerrainLayer`s & URP Pipeline Asset) | ✅ Done | `Assets/_Project/Code/Editor/EnvironmentTextureGenerator.cs` |
+| `TerrainWorldBuilder` (4-Stage Unity Terrain: Build Terrain -> Paint 5-Layer Splatmap -> Add 155 Trees & 3D Grass Details -> Edit/Smooth Terrain) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
+| `SandboxSceneBuilder` (`v4_terrain_world` — tự động dựng toàn bộ Vertical Slice, PBR Materials & Unity Terrain) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
 | `CoreSystemsVerifier` (`EotL/QA/Run Core Systems Self-Test`) | ✅ Done | `Assets/_Project/Code/Editor/CoreSystemsVerifier.cs` |
 
 ---

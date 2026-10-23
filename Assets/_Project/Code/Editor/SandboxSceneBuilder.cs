@@ -38,7 +38,7 @@ namespace EchoesOfTheLost.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Sandbox.unity";
         private const string StampPath = "ProjectSettings/SandboxVersion.txt";
-        private const string BuilderVersion = "v3_textured_world";
+        private const string BuilderVersion = "v4_terrain_world";
         private const string ControllerPath = "Assets/_Project/Art/Characters/Player/PlayerAnimator.controller";
         private const string InputPath = "Assets/_Project/Settings/Input/PlayerInputActions.inputactions";
         private const string MatDir = "Assets/_Project/Art/Materials";
@@ -261,9 +261,9 @@ namespace EchoesOfTheLost.EditorTools
 
             new GameObject("WorldEventSystem").AddComponent<WorldEventSystem>();
 
-            // ── 3. Environment: Verda Wilds & Solenne Watchtower Ruins ──
+            // ── 3. Environment: Verda Wilds Terrain & Solenne Watchtower Ruins ──
             var envRoot = new GameObject("Environment_VerdaWilds").transform;
-            BuildRichEnvironment(envRoot, matGrass, matGrassTuft, matEarth, matRoad, matRock, matStone, matMountain, matTreeTrunk, matTreeLeaves);
+            BuildRichEnvironment(envRoot, envMats, matGrass, matGrassTuft, matEarth, matRoad, matRock, matStone, matMountain, matTreeTrunk, matTreeLeaves);
 
             // ── 4. Solenne Echo Crystals (Collectibles / Lore Nodes) ──
             CreateEchoCrystal("EchoCrystal_West", envRoot, new Vector3(-4.5f, 1.6f, 15f), matRock, matCrystal,
@@ -361,38 +361,26 @@ namespace EchoesOfTheLost.EditorTools
 
         private static void BuildRichEnvironment(
             Transform envRoot,
+            EnvironmentMaterialSet envMats,
             Material matGrass, Material matGrassTuft, Material matEarth,
             Material matRoad, Material matRock, Material matStone,
             Material matMountain, Material matTreeTrunk, Material matTreeLeaves)
         {
-            // 1. KHỐI ĐẤT & THẢM CỎ (Earth Terraces & Lush Grass Blocks)
+            // 0. UNITY TERRAIN (Sculpted Heightmap + 5 Splat Layers + TreeInstances + 3D Grass Details)
+            TerrainWorldBuilder.BuildCompleteTerrain(envRoot, envMats);
+
+            // 1. KHỐI ĐẤT & THẢM CỎ (Scenic Earthen Overlooks with Grass Caps)
             var earthGroup = new GameObject("01_Earth_And_Grass_Blocks").transform;
             earthGroup.SetParent(envRoot, false);
 
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ground.name = "Valley_Grass_Floor";
-            ground.transform.SetParent(earthGroup, false);
-            ground.transform.localScale = new Vector3(32f, 1f, 32f);
-            ground.GetComponent<Renderer>().sharedMaterial = matGrass;
+            CreateTerracedEarthBlock("EarthBlock_WestOverlook", earthGroup, new Vector3(-22f, 1.3f, 14f), new Vector3(9f, 2.6f, 16f), matEarth, matGrass);
+            CreateTerracedEarthBlock("EarthBlock_EastOverlook", earthGroup, new Vector3(22f, 1.4f, 14f), new Vector3(9f, 2.8f, 16f), matEarth, matGrass);
 
-            // Terraced Earthen Hills with Grass Caps (Khối đất phân tầng phủ cỏ trên đỉnh)
-            CreateTerracedEarthBlock("EarthBlock_WestHill", earthGroup, new Vector3(-19f, 1.2f, 10f), new Vector3(12f, 2.4f, 22f), matEarth, matGrass);
-            CreateTerracedEarthBlock("EarthBlock_EastHill", earthGroup, new Vector3(19f, 1.4f, 12f), new Vector3(12f, 2.8f, 24f), matEarth, matGrass);
-            CreateTerracedEarthBlock("EarthBlock_SouthWest", earthGroup, new Vector3(-15f, 0.9f, -10f), new Vector3(14f, 1.8f, 12f), matEarth, matGrass);
-            CreateTerracedEarthBlock("EarthBlock_SouthEast", earthGroup, new Vector3(15f, 0.9f, -9f), new Vector3(14f, 1.8f, 12f), matEarth, matGrass);
-            CreateTerracedEarthBlock("EarthBlock_NorthSanctum", earthGroup, new Vector3(0f, 1.8f, 32f), new Vector3(28f, 3.6f, 12f), matEarth, matGrass);
-
-            // 2. ĐƯỜNG ĐI LÁT ĐÁ & CẦU CỔ (Cobblestone Road & Ancient Stone Bridge)
+            // 2. CẦU ĐÁ CỔ TRÊN ĐƯỜNG MÒN TERRAIN (Stone Bridge & Curbs along Painted Terrain Road)
             var roadGroup = new GameObject("02_Road_And_StoneBridge").transform;
             roadGroup.SetParent(envRoot, false);
 
-            CreateBox("Road_SouthTrail", roadGroup, new Vector3(0f, 0.03f, -12f), new Vector3(3.8f, 0.06f, 12f), matRoad);
-            CreateBox("Road_BridgeApproach", roadGroup, new Vector3(0f, 0.04f, -3f), new Vector3(4.0f, 0.08f, 6f), matRoad);
-            CreateBox("Road_CampCourtyard", roadGroup, new Vector3(0f, 0.03f, 4f), new Vector3(4.6f, 0.06f, 8f), matRoad);
-            CreateBox("Road_WestBranch", roadGroup, new Vector3(-5.5f, 0.03f, 5.5f), new Vector3(6.5f, 0.06f, 2.6f), matRoad);
-            CreateBox("Road_EastBranch", roadGroup, new Vector3(5.5f, 0.03f, 6.5f), new Vector3(6.5f, 0.06f, 2.6f), matRoad);
-
-            // Road stone curbs & low bridge parapets
+            CreateBox("Bridge_CobbleDeck", roadGroup, new Vector3(0f, 0.04f, -3f), new Vector3(4.2f, 0.08f, 5.6f), matRoad);
             CreateBox("Bridge_Parapet_W", roadGroup, new Vector3(-2.3f, 0.45f, -3f), new Vector3(0.45f, 0.8f, 5.5f), matStone);
             CreateBox("Bridge_Parapet_E", roadGroup, new Vector3(2.3f, 0.45f, -3f), new Vector3(0.45f, 0.8f, 5.5f), matStone);
             CreateBox("Bridge_Post_SW", roadGroup, new Vector3(-2.3f, 0.75f, -5.8f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
@@ -400,17 +388,12 @@ namespace EchoesOfTheLost.EditorTools
             CreateBox("Bridge_Post_NW", roadGroup, new Vector3(-2.3f, 0.75f, -0.2f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
             CreateBox("Bridge_Post_NE", roadGroup, new Vector3(2.3f, 0.75f, -0.2f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
 
-            // 3. NÚI & VÁCH ĐÁ (Craggy Mountain Cliffs & Ridges)
+            // 3. VÁCH NÚI ĐÁ (Alpine Cliff Outcrops accenting the Sculpted Terrain Mountains)
             var mountainGroup = new GameObject("03_Mountains_And_Cliffs").transform;
             mountainGroup.SetParent(envRoot, false);
 
-            CreateMountainPeak("Mountain_NorthCenter", mountainGroup, new Vector3(0f, 0f, 48f), new Vector3(28f, 26f, 18f), matMountain);
-            CreateMountainPeak("Mountain_NorthWest", mountainGroup, new Vector3(-26f, 0f, 40f), new Vector3(24f, 22f, 20f), matMountain);
-            CreateMountainPeak("Mountain_NorthEast", mountainGroup, new Vector3(26f, 0f, 40f), new Vector3(24f, 24f, 20f), matMountain);
-            CreateMountainPeak("Mountain_WestWall", mountainGroup, new Vector3(-36f, 0f, 12f), new Vector3(18f, 18f, 38f), matMountain);
-            CreateMountainPeak("Mountain_EastWall", mountainGroup, new Vector3(36f, 0f, 12f), new Vector3(18f, 19f, 38f), matMountain);
-            CreateMountainPeak("Mountain_SouthWestRidge", mountainGroup, new Vector3(-30f, 0f, -22f), new Vector3(22f, 15f, 18f), matMountain);
-            CreateMountainPeak("Mountain_SouthEastRidge", mountainGroup, new Vector3(30f, 0f, -22f), new Vector3(22f, 16f, 18f), matMountain);
+            CreateMountainPeak("CliffOutcrop_NorthWest", mountainGroup, new Vector3(-42f, 6f, 52f), new Vector3(18f, 18f, 14f), matMountain);
+            CreateMountainPeak("CliffOutcrop_NorthEast", mountainGroup, new Vector3(42f, 6f, 52f), new Vector3(18f, 19f, 14f), matMountain);
 
             // 4. ĐÁ TẢNG & PHẾ TÍCH CỔ SOLENNE (Mossy Boulders & Ruin Masonry)
             var rockGroup = new GameObject("04_Rocks_And_Ruins").transform;
