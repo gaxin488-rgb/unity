@@ -767,9 +767,9 @@ namespace EchoesOfTheLost.EditorTools
         private static Mesh BuildCombinedTreeMesh(bool isPine)
         {
             var cylGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            var sphGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var quadGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
             Mesh cylMesh = cylGO.GetComponent<MeshFilter>().sharedMesh;
-            Mesh sphMesh = sphGO.GetComponent<MeshFilter>().sharedMesh;
+            Mesh quadMesh = quadGO.GetComponent<MeshFilter>().sharedMesh;
 
             var trunkCombines = new List<CombineInstance>();
             var canopyCombines = new List<CombineInstance>();
@@ -780,96 +780,103 @@ namespace EchoesOfTheLost.EditorTools
                 AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0f, 3.8f, 0f), 0.42f, trunkCombines, cylMesh);
                 AddLimbToCombines(new Vector3(0f, 3.8f, 0f), new Vector3(0f, 7.2f, 0f), 0.26f, trunkCombines, cylMesh);
 
-                // Pine tiered foliage rings (graduating smaller upwards)
-                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 3.2f, 0f), Quaternion.identity, new Vector3(3.2f, 1.8f, 3.2f)) });
-                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 4.4f, 0f), Quaternion.identity, new Vector3(2.6f, 1.6f, 2.6f)) });
-                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 5.5f, 0f), Quaternion.identity, new Vector3(2.0f, 1.5f, 2.0f)) });
-                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 6.5f, 0f), Quaternion.identity, new Vector3(1.4f, 1.3f, 1.4f)) });
-                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 7.4f, 0f), Quaternion.identity, new Vector3(0.9f, 1.1f, 0.9f)) });
+                // Pine tiered foliage cards (graduating smaller upwards)
+                float[] tierHeights = { 3.0f, 4.2f, 5.3f, 6.3f, 7.3f };
+                float[] tierScales = { 3.2f, 2.6f, 2.0f, 1.4f, 0.9f };
+
+                for (int t = 0; t < tierHeights.Length; t++)
+                {
+                    float th = tierHeights[t];
+                    float ts = tierScales[t];
+                    int cardCount = 6;
+                    for (int c = 0; c < cardCount; c++)
+                    {
+                        float ang = c * (360f / cardCount);
+                        Quaternion rot = Quaternion.Euler(32f, ang, 0f);
+                        Vector3 offset = Quaternion.Euler(0f, ang, 0f) * Vector3.forward * (ts * 0.32f);
+                        canopyCombines.Add(new CombineInstance
+                        {
+                            mesh = quadMesh,
+                            transform = Matrix4x4.TRS(new Vector3(0f, th, 0f) + offset, rot, Vector3.one * ts)
+                        });
+                    }
+                }
             }
             else
             {
-                // Organic Deciduous Tree with Visible Branches & Small Foliage Clumps ("cây có cành cây táng lá nhỏ")
-                // 1. Trunk Base & Mid
-                AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0.04f, 1.4f, 0.02f), 0.38f, trunkCombines, cylMesh);
-                AddLimbToCombines(new Vector3(0.04f, 1.4f, 0.02f), new Vector3(0.0f, 2.5f, 0.04f), 0.32f, trunkCombines, cylMesh);
+                // Recursive Branching Deciduous Oak Tree with Crossed Leaf Quads
+                var rng = new System.Random(42);
 
-                // 2. 4 Primary Boughs spreading outward and upward
-                Vector3 boughOrigin = new Vector3(0.0f, 2.3f, 0.04f);
-                Vector3 boughNorth = new Vector3(-0.4f, 3.8f, 1.5f);
-                Vector3 boughSouth = new Vector3(0.5f, 3.7f, -1.4f);
-                Vector3 boughWest  = new Vector3(-1.5f, 3.9f, -0.3f);
-                Vector3 boughEast  = new Vector3(1.4f, 4.0f, 0.4f);
-                Vector3 boughCenter= new Vector3(0.08f, 4.3f, 0.02f);
-
-                AddLimbToCombines(boughOrigin, boughNorth, 0.22f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughOrigin, boughSouth, 0.22f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughOrigin, boughWest, 0.22f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughOrigin, boughEast, 0.22f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughOrigin, boughCenter, 0.24f, trunkCombines, cylMesh);
-
-                // 3. 10 Secondary Branches extending from boughs
-                Vector3 tipN1 = new Vector3(-1.0f, 4.9f, 2.2f);
-                Vector3 tipN2 = new Vector3(0.4f, 5.1f, 2.0f);
-                AddLimbToCombines(boughNorth, tipN1, 0.14f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughNorth, tipN2, 0.13f, trunkCombines, cylMesh);
-
-                Vector3 tipS1 = new Vector3(1.1f, 4.8f, -2.2f);
-                Vector3 tipS2 = new Vector3(-0.3f, 4.8f, -1.9f);
-                AddLimbToCombines(boughSouth, tipS1, 0.14f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughSouth, tipS2, 0.13f, trunkCombines, cylMesh);
-
-                Vector3 tipW1 = new Vector3(-2.3f, 4.8f, -0.9f);
-                Vector3 tipW2 = new Vector3(-2.1f, 5.1f, 0.6f);
-                AddLimbToCombines(boughWest, tipW1, 0.14f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughWest, tipW2, 0.13f, trunkCombines, cylMesh);
-
-                Vector3 tipE1 = new Vector3(2.3f, 4.9f, 1.0f);
-                Vector3 tipE2 = new Vector3(2.0f, 5.1f, -0.6f);
-                AddLimbToCombines(boughEast, tipE1, 0.14f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughEast, tipE2, 0.13f, trunkCombines, cylMesh);
-
-                Vector3 tipC1 = new Vector3(-0.4f, 5.6f, 0.3f);
-                Vector3 tipC2 = new Vector3(0.5f, 5.7f, -0.3f);
-                Vector3 tipTop = new Vector3(0.0f, 6.4f, 0.1f);
-                AddLimbToCombines(boughCenter, tipC1, 0.15f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughCenter, tipC2, 0.15f, trunkCombines, cylMesh);
-                AddLimbToCombines(boughCenter, tipTop, 0.11f, trunkCombines, cylMesh);
-
-                // 4. 22 Small Foliage Clumps ("táng lá nhỏ") nestled at tips and forks
-                Vector3[] foliageLocs =
+                void BuildBranchToCombines(
+                    Vector3 startPos, Quaternion rotation, float length, float radius,
+                    int depth, int maxDepth)
                 {
-                    tipN1, tipN2,
-                    new Vector3(-0.4f, 4.0f, 1.5f), new Vector3(-0.7f, 4.4f, 1.8f),
-                    tipS1, tipS2,
-                    new Vector3(0.5f, 3.9f, -1.4f), new Vector3(0.8f, 4.3f, -1.8f),
-                    tipW1, tipW2,
-                    new Vector3(-1.5f, 4.1f, -0.3f), new Vector3(-1.8f, 4.5f, 0.1f),
-                    tipE1, tipE2,
-                    new Vector3(1.4f, 4.2f, 0.4f), new Vector3(1.8f, 4.6f, 0.2f),
-                    tipC1, tipC2, tipTop,
-                    new Vector3(0.1f, 4.5f, 0.0f), new Vector3(-0.5f, 5.0f, -0.2f), new Vector3(0.3f, 5.1f, 0.4f)
-                };
+                    Vector3 dir = rotation * Vector3.up;
+                    Vector3 mid = startPos + dir * (length * 0.5f);
 
-                float[] scales =
-                {
-                    1.4f, 1.3f, 1.2f, 1.1f,
-                    1.4f, 1.3f, 1.2f, 1.1f,
-                    1.4f, 1.3f, 1.2f, 1.1f,
-                    1.4f, 1.3f, 1.2f, 1.1f,
-                    1.5f, 1.4f, 1.3f,
-                    1.2f, 1.1f, 1.1f
-                };
-
-                for (int i = 0; i < foliageLocs.Length; i++)
-                {
-                    float s = scales[i];
-                    canopyCombines.Add(new CombineInstance
+                    trunkCombines.Add(new CombineInstance
                     {
-                        mesh = sphMesh,
-                        transform = Matrix4x4.TRS(foliageLocs[i], Quaternion.Euler(i * 17f, i * 43f, 0f), new Vector3(s, s * 0.78f, s))
+                        mesh = cylMesh,
+                        transform = Matrix4x4.TRS(mid, rotation, new Vector3(radius * 2f, length * 0.5f, radius * 2f))
                     });
+
+                    Vector3 tipPos = startPos + dir * length;
+
+                    void AddLeafCluster(Vector3 pos, float scale)
+                    {
+                        for (int i = 0; i < 6; i++)
+                        {
+                            Vector3 offset = new Vector3(
+                                (float)(rng.NextDouble() * 2.0 - 1.0),
+                                (float)(rng.NextDouble() * 2.0 - 1.0),
+                                (float)(rng.NextDouble() * 2.0 - 1.0)
+                            ) * (scale * 0.2f);
+
+                            Quaternion rot = Quaternion.Euler(
+                                (float)(rng.NextDouble() * 110.0 - 55.0),
+                                i * 60f + (float)(rng.NextDouble() * 30.0 - 15.0),
+                                (float)(rng.NextDouble() * 70.0 - 35.0)
+                            );
+
+                            float cardScale = scale * (0.85f + (float)rng.NextDouble() * 0.40f);
+
+                            canopyCombines.Add(new CombineInstance
+                            {
+                                mesh = quadMesh,
+                                transform = Matrix4x4.TRS(pos + offset, rot, Vector3.one * cardScale)
+                            });
+                        }
+                    }
+
+                    if (depth >= maxDepth)
+                    {
+                        AddLeafCluster(tipPos, radius * 18f);
+                        return;
+                    }
+
+                    if (depth >= maxDepth - 1)
+                    {
+                        AddLeafCluster(tipPos, radius * 14f);
+                    }
+
+                    int subBranches = (depth == 0) ? 3 : rng.Next(2, 4);
+                    for (int i = 0; i < subBranches; i++)
+                    {
+                        float yaw = (360f / subBranches) * i + (float)(rng.NextDouble() * 50.0 - 25.0);
+                        float pitch = (i == 0 && depth < 2)
+                            ? 8f + (float)rng.NextDouble() * 10f
+                            : 28f + (float)rng.NextDouble() * 24f;
+
+                        Quaternion nextRot = rotation * Quaternion.Euler(pitch, yaw, 0f);
+                        float nextLength = length * (0.68f + (float)rng.NextDouble() * 0.14f);
+                        float nextRadius = radius * 0.65f;
+
+                        BuildBranchToCombines(tipPos, nextRot, nextLength, nextRadius, depth + 1, maxDepth);
+                    }
                 }
+
+                BuildBranchToCombines(Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f,
+                    depth: 0, maxDepth: 3);
             }
 
             var trunkSubMesh = new Mesh();
@@ -892,7 +899,7 @@ namespace EchoesOfTheLost.EditorTools
             Object.DestroyImmediate(trunkSubMesh);
             Object.DestroyImmediate(canopySubMesh);
             Object.DestroyImmediate(cylGO);
-            Object.DestroyImmediate(sphGO);
+            Object.DestroyImmediate(quadGO);
 
             return finalMesh;
         }

@@ -76,6 +76,8 @@ namespace EchoesOfTheLost.EditorTools
             EnsureTexturePair("Tex_Foliage", forceRegenerateTextures, SampleFoliage, normalStrength: 2.4f);
             // 9. GrassBlade (Bụi cỏ với ngọn nhọn và nền Alpha trong suốt)
             EnsureGrassBladeTextures(forceRegenerateTextures);
+            // 10. LeafCluster (Tán lá cây với viền răng cưa và nền Alpha trong suốt)
+            EnsureLeafClusterTextures(forceRegenerateTextures);
 
             AssetDatabase.Refresh();
 
@@ -92,6 +94,8 @@ namespace EchoesOfTheLost.EditorTools
             }
             ConfigureTextureImporter($"{TexDir}/Tex_GrassBlade_Albedo.png", isNormal: false, isAlphaCutout: true);
             ConfigureTextureImporter($"{TexDir}/Tex_GrassBlade_Normal.png", isNormal: true, isAlphaCutout: true);
+            ConfigureTextureImporter($"{TexDir}/Tex_LeafCluster_Albedo.png", isNormal: false, isAlphaCutout: true);
+            ConfigureTextureImporter($"{TexDir}/Tex_LeafCluster_Normal.png", isNormal: true, isAlphaCutout: true);
 
             // Build URP Materials
             var set = new EnvironmentMaterialSet
@@ -121,8 +125,9 @@ namespace EchoesOfTheLost.EditorTools
                 TreeTrunk = CreateOrUpdatePBRMaterial("Mat_TreeTrunk.mat", "Tex_TreeBark",
                     Color.white, smoothness: 0.12f, bumpScale: 1.4f, tiling: new Vector2(2f, 3f)),
 
-                TreeLeaves = CreateOrUpdatePBRMaterial("Mat_TreeLeaves.mat", "Tex_Foliage",
-                    Color.white, smoothness: 0.16f, bumpScale: 1.05f, tiling: new Vector2(3f, 3f)),
+                // Tán lá cây Alpha Cutout: 2 mặt (Cull Off), viền răng cưa tự nhiên, không bị tròn đặc
+                TreeLeaves = CreateOrUpdateCutoutMaterial("Mat_TreeLeaves.mat", "Tex_LeafCluster",
+                    Color.white, cutoff: 0.35f),
 
                 Crystal = CreateOrUpdateEmissiveMaterial("Mat_EchoCrystal.mat",
                     new Color(0.18f, 0.92f, 1.0f), new Color(0.12f, 0.78f, 0.95f) * 2.4f),
@@ -559,6 +564,80 @@ namespace EchoesOfTheLost.EditorTools
                 }
             }
             WritePngCustom(normalPath, normals, w, h);
+        }
+
+        private static void EnsureLeafClusterTextures(bool force)
+        {
+            string albedoPath = $"{TexDir}/Tex_LeafCluster_Albedo.png";
+            string normalPath = $"{TexDir}/Tex_LeafCluster_Normal.png";
+
+            if (!force && File.Exists(albedoPath) && File.Exists(normalPath)) return;
+
+            int size = 128;
+            var pixels = new Color[size * size];
+            var heights = new float[size * size];
+            Vector2 center = new Vector2(size * 0.5f, size * 0.5f);
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    // Tạo nhiều chiếc lá nhỏ xếp chồng lên nhau thay vì 1 khối đặc
+                    float dist = Vector2.Distance(new Vector2(x, y), center) / (size * 0.45f);
+                    float angle = Mathf.Atan2(y - center.y, x - center.x);
+                    float wave = Mathf.Sin(angle * 7f) * 0.15f + Mathf.Cos(angle * 13f) * 0.1f;
+                    float noise = Mathf.PerlinNoise(x * 0.25f, y * 0.25f);
+
+                    // Cắt lỗ và viền lá tự nhiên
+                    if (dist + wave < 0.85f && noise > 0.32f)
+                    {
+                        Color leafCol = Color.Lerp(new Color(0.15f, 0.42f, 0.12f, 1f), new Color(0.32f, 0.62f, 0.2f, 1f), noise);
+                        // Tăng độ sáng viền nhẹ đón nắng
+                        float edge = Mathf.Clamp01(1f - (dist + wave));
+                        leafCol = Color.Lerp(leafCol, new Color(0.48f, 0.74f, 0.24f, 1f), edge * 0.30f);
+
+                        pixels[y * size + x] = leafCol;
+                        heights[y * size + x] = Mathf.Clamp01((1f - dist * 0.4f) * (0.6f + 0.4f * noise));
+                    }
+                    else
+                    {
+                        pixels[y * size + x] = Color.clear;
+                        heights[y * size + x] = 0f;
+                    }
+                }
+            }
+
+            WritePngCustom(albedoPath, pixels, size, size);
+
+            // Tính toán Normal map cho phiến lá
+            var normals = new Color[size * size];
+            float normalStrength = 2.4f;
+            for (int y = 0; y < size; y++)
+            {
+                int yUp = Mathf.Min(size - 1, y + 1);
+                int yDown = Mathf.Max(0, y - 1);
+                for (int x = 0; x < size; x++)
+                {
+                    int xRight = Mathf.Min(size - 1, x + 1);
+                    int xLeft = Mathf.Max(0, x - 1);
+
+                    float hL = heights[y * size + xLeft];
+                    float hR = heights[y * size + xRight];
+                    float hD = heights[yDown * size + x];
+                    float hU = heights[yUp * size + x];
+
+                    float dx = (hL - hR) * normalStrength;
+                    float dy = (hD - hU) * normalStrength;
+                    Vector3 n = new Vector3(dx, dy, 1f).normalized;
+
+                    normals[y * size + x] = new Color(
+                        n.x * 0.5f + 0.5f,
+                        n.y * 0.5f + 0.5f,
+                        n.z * 0.5f + 0.5f,
+                        pixels[y * size + x].a);
+                }
+            }
+            WritePngCustom(normalPath, normals, size, size);
         }
 
         private static void ConfigureTextureImporter(string assetPath, bool isNormal, bool isAlphaCutout = false)

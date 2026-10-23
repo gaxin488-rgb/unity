@@ -583,102 +583,88 @@ namespace EchoesOfTheLost.EditorTools
             go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
+        // 2. Tạo chùm cành lá từ các tấm Quad đan chéo (thay cho PrimitiveType.Sphere)
+        private static void CreateLeafCluster(Transform parent, Vector3 position, float scale, Material leafMat)
+        {
+            var cluster = new GameObject("LeafCluster");
+            cluster.transform.SetParent(parent, false);
+            cluster.transform.localPosition = position;
+
+            // Tạo 6 mặt phẳng lá xoay các góc khác nhau tạo độ phồng 3D tự nhiên
+            for (int i = 0; i < 6; i++)
+            {
+                var card = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.DestroyImmediate(card.GetComponent<Collider>());
+                card.name = $"LeafCard_{i}";
+                card.transform.SetParent(cluster.transform, false);
+                card.transform.localPosition = Random.insideUnitSphere * (scale * 0.2f);
+                card.transform.localRotation = Quaternion.Euler(
+                    Random.Range(-55f, 55f),
+                    i * 60f + Random.Range(-15f, 15f),
+                    Random.Range(-35f, 35f)
+                );
+                card.transform.localScale = Vector3.one * scale * Random.Range(0.85f, 1.25f);
+                card.GetComponent<Renderer>().sharedMaterial = leafMat;
+            }
+        }
+
+        // 3. Hàm đệ quy tạo cây cao nhiều tầng nhánh và cành con
+        private static void BuildBranch(Transform parent, Vector3 startPos, Quaternion rotation, float length, float radius, int depth, int maxDepth, Material barkMat, Material leafMat)
+        {
+            // Tạo đoạn thân/cành hiện tại
+            var segment = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            segment.name = $"Branch_D{depth}";
+            if (depth > 0) Object.DestroyImmediate(segment.GetComponent<Collider>()); // Giữ collider ở thân chính
+            segment.transform.SetParent(parent, false);
+
+            Vector3 dir = rotation * Vector3.up;
+            segment.transform.localPosition = startPos + dir * (length * 0.5f);
+            segment.transform.localRotation = rotation;
+            segment.transform.localScale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
+            segment.GetComponent<Renderer>().sharedMaterial = barkMat;
+
+            Vector3 tipPos = startPos + dir * length;
+
+            // Nếu đã đến nhánh ngoài cùng -> gắn chùm lá xum xuê
+            if (depth >= maxDepth)
+            {
+                CreateLeafCluster(parent, tipPos, radius * 18f, leafMat);
+                return;
+            }
+
+            // Nếu ở tầng cành trung gian cũng thêm một ít lá phụ tạo độ dầy tán
+            if (depth >= maxDepth - 1)
+            {
+                CreateLeafCluster(parent, tipPos, radius * 14f, leafMat);
+            }
+
+            // Phân nhánh: Thân chính đi tiếp lên cao + đẻ ra 2 đến 4 nhánh con tỏa ra xung quanh
+            int subBranches = (depth == 0) ? 3 : Random.Range(2, 4);
+            for (int i = 0; i < subBranches; i++)
+            {
+                float yaw = (360f / subBranches) * i + Random.Range(-25f, 25f);
+                float pitch = (i == 0 && depth < 2) ? Random.Range(8f, 18f) : Random.Range(28f, 52f); // 1 nhánh vươn cao, các nhánh khác tỏa rộng
+
+                Quaternion nextRot = rotation * Quaternion.Euler(pitch, yaw, 0f);
+                float nextLength = length * Random.Range(0.68f, 0.82f);
+                float nextRadius = radius * 0.65f;
+
+                BuildBranch(parent, tipPos, nextRot, nextLength, nextRadius, depth + 1, maxDepth, barkMat, leafMat);
+            }
+        }
+
         private static void CreateStylizedTree(string name, Transform parent, Vector3 pos, Material trunkMat, Material leafMat)
         {
             var root = new GameObject(name).transform;
             root.SetParent(parent, false);
             root.position = pos;
 
-            // Helper to create an angled branch cylinder
-            void AddBranch(string bName, Vector3 start, Vector3 end, float radius)
-            {
-                Vector3 delta = end - start;
-                float len = delta.magnitude;
-                if (len < 0.01f) return;
-                var cyl = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                cyl.name = bName;
-                cyl.transform.SetParent(root, false);
-                cyl.transform.localPosition = (start + end) * 0.5f;
-                cyl.transform.localRotation = Quaternion.FromToRotation(Vector3.up, delta.normalized);
-                cyl.transform.localScale = new Vector3(radius * 2f, len * 0.5f, radius * 2f);
-                cyl.GetComponent<Renderer>().sharedMaterial = trunkMat;
-                Object.DestroyImmediate(cyl.GetComponent<Collider>());
-            }
+            // Dùng seed dựa trên tên & vị trí để cây giữ nguyên hình thái ổn định, tự nhiên
+            int seed = name.GetHashCode() ^ Mathf.RoundToInt(pos.x * 73f + pos.z * 137f);
+            Random.InitState(seed);
 
-            // Helper to create small foliage clump ("táng lá nhỏ")
-            void AddLeaf(string lName, Vector3 lPos, Vector3 lScale)
-            {
-                var sph = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                sph.name = lName;
-                sph.transform.SetParent(root, false);
-                sph.transform.localPosition = lPos;
-                sph.transform.localScale = lScale;
-                sph.GetComponent<Renderer>().sharedMaterial = leafMat;
-                Object.DestroyImmediate(sph.GetComponent<Collider>());
-            }
-
-            // 1. Trunk Base & Mid
-            AddBranch("Trunk_Base", new Vector3(0f, 0f, 0f), new Vector3(0.04f, 1.4f, 0.02f), 0.38f);
-            AddBranch("Trunk_Mid", new Vector3(0.04f, 1.4f, 0.02f), new Vector3(0.0f, 2.5f, 0.04f), 0.32f);
-
-            // 2. Primary Boughs
-            Vector3 origin = new Vector3(0.0f, 2.3f, 0.04f);
-            Vector3 bN = new Vector3(-0.4f, 3.8f, 1.5f);
-            Vector3 bS = new Vector3(0.5f, 3.7f, -1.4f);
-            Vector3 bW = new Vector3(-1.5f, 3.9f, -0.3f);
-            Vector3 bE = new Vector3(1.4f, 4.0f, 0.4f);
-            Vector3 bC = new Vector3(0.08f, 4.3f, 0.02f);
-
-            AddBranch("Bough_North", origin, bN, 0.22f);
-            AddBranch("Bough_South", origin, bS, 0.22f);
-            AddBranch("Bough_West",  origin, bW, 0.22f);
-            AddBranch("Bough_East",  origin, bE, 0.22f);
-            AddBranch("Bough_Center",origin, bC, 0.24f);
-
-            // 3. Secondary Branches
-            Vector3 tipN1 = new Vector3(-1.0f, 4.9f, 2.2f);
-            Vector3 tipN2 = new Vector3(0.4f, 5.1f, 2.0f);
-            AddBranch("Branch_N1", bN, tipN1, 0.14f);
-            AddBranch("Branch_N2", bN, tipN2, 0.13f);
-
-            Vector3 tipS1 = new Vector3(1.1f, 4.8f, -2.2f);
-            Vector3 tipS2 = new Vector3(-0.3f, 4.8f, -1.9f);
-            AddBranch("Branch_S1", bS, tipS1, 0.14f);
-            AddBranch("Branch_S2", bS, tipS2, 0.13f);
-
-            Vector3 tipW1 = new Vector3(-2.3f, 4.8f, -0.9f);
-            Vector3 tipW2 = new Vector3(-2.1f, 5.1f, 0.6f);
-            AddBranch("Branch_W1", bW, tipW1, 0.14f);
-            AddBranch("Branch_W2", bW, tipW2, 0.13f);
-
-            Vector3 tipE1 = new Vector3(2.3f, 4.9f, 1.0f);
-            Vector3 tipE2 = new Vector3(2.0f, 5.1f, -0.6f);
-            AddBranch("Branch_E1", bE, tipE1, 0.14f);
-            AddBranch("Branch_E2", bE, tipE2, 0.13f);
-
-            Vector3 tipC1 = new Vector3(-0.4f, 5.6f, 0.3f);
-            Vector3 tipC2 = new Vector3(0.5f, 5.7f, -0.3f);
-            Vector3 tipTop = new Vector3(0.0f, 6.4f, 0.1f);
-            AddBranch("Branch_C1", bC, tipC1, 0.15f);
-            AddBranch("Branch_C2", bC, tipC2, 0.15f);
-            AddBranch("Branch_Top", bC, tipTop, 0.11f);
-
-            // 4. 22 Small Foliage Clumps ("táng lá nhỏ")
-            Vector3[] foliageLocs =
-            {
-                tipN1, tipN2, new Vector3(-0.4f, 4.0f, 1.5f), new Vector3(-0.7f, 4.4f, 1.8f),
-                tipS1, tipS2, new Vector3(0.5f, 3.9f, -1.4f), new Vector3(0.8f, 4.3f, -1.8f),
-                tipW1, tipW2, new Vector3(-1.5f, 4.1f, -0.3f), new Vector3(-1.8f, 4.5f, 0.1f),
-                tipE1, tipE2, new Vector3(1.4f, 4.2f, 0.4f), new Vector3(1.8f, 4.6f, 0.2f),
-                tipC1, tipC2, tipTop,
-                new Vector3(0.1f, 4.5f, 0.0f), new Vector3(-0.5f, 5.0f, -0.2f), new Vector3(0.3f, 5.1f, 0.4f)
-            };
-
-            for (int i = 0; i < foliageLocs.Length; i++)
-            {
-                float s = (i % 3 == 0) ? 1.4f : ((i % 3 == 1) ? 1.25f : 1.15f);
-                AddLeaf($"LeafClump_{i}", foliageLocs[i], new Vector3(s, s * 0.78f, s));
-            }
+            // Bắt đầu đệ quy từ thân chính (Cấp 0) -> Cành lớn (Cấp 1) -> Cành nhỡ (Cấp 2) -> Nhánh con (Cấp 3)
+            BuildBranch(root, Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f, depth: 0, maxDepth: 3, trunkMat, leafMat);
         }
 
         private static void CreateRoadsideWallAndFlowers(
