@@ -22,7 +22,12 @@ MonoBehaviour:
   fogStartDistance: 50
   ambientLight: {r: 1, g: 1, b: 1, a: 1}
   colorGradingLUTPath: 
-  terrainLayers: []
+  terrainLayers:
+  - {fileID: 8574412962073106934, guid: ddd611f6a3e09074a9df8c5be742e360, type: 2}
+  - {fileID: 8574412962073106934, guid: 3ad62e0ff74af054ca039e8fa7c1e7b1, type: 2}
+  - {fileID: 8574412962073106934, guid: 24da2f92235455645b5471cfe38b42bf, type: 2}
+  - {fileID: 8574412962073106934, guid: f707c9febb8c60c48afe63575ce63e95, type: 2}
+  - {fileID: 8574412962073106934, guid: a6e6c13a6c6c9f84896cdef8a61fd4d5, type: 2}
   heightScale: 50
   noiseScale: 0.005
   treePrefabs: []

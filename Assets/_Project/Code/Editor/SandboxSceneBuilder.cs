@@ -38,7 +38,7 @@ namespace EchoesOfTheLost.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Sandbox.unity";
         private const string StampPath = "ProjectSettings/SandboxVersion.txt";
-        private const string BuilderVersion = "v2_verda_wilds";
+        private const string BuilderVersion = "v3_textured_world";
         private const string ControllerPath = "Assets/_Project/Art/Characters/Player/PlayerAnimator.controller";
         private const string InputPath = "Assets/_Project/Settings/Input/PlayerInputActions.inputactions";
         private const string MatDir = "Assets/_Project/Art/Materials";
@@ -196,21 +196,27 @@ namespace EchoesOfTheLost.EditorTools
 
             var controller = CreateOrLoadPlayerAnimator();
 
-            // ── Create Materials ──
+            // ── Create PBR Textures, Materials & TerrainLayers ──
             Directory.CreateDirectory(MatDir);
-            var matGrass = CreateOrLoadMaterial("Mat_Grass.mat", new Color(0.24f, 0.48f, 0.26f));
-            var matStone = CreateOrLoadMaterial("Mat_RuinStone.mat", new Color(0.52f, 0.54f, 0.50f));
-            var matDarkStone = CreateOrLoadMaterial("Mat_RuinDark.mat", new Color(0.36f, 0.38f, 0.36f));
-            var matCrystal = CreateOrLoadMaterial("Mat_EchoCrystal.mat", new Color(0.20f, 0.92f, 0.98f), emission: new Color(0.1f, 0.7f, 0.85f));
+            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var matGrass = envMats.Grass;
+            var matGrassTuft = envMats.GrassTuft;
+            var matEarth = envMats.Earth;
+            var matRoad = envMats.Road;
+            var matRock = envMats.Rock;
+            var matStone = envMats.RuinStone;
+            var matMountain = envMats.Mountain;
+            var matTreeTrunk = envMats.TreeTrunk;
+            var matTreeLeaves = envMats.TreeLeaves;
+            var matCrystal = envMats.Crystal;
+
             var matPlayer = CreateOrLoadMaterial("Mat_Player.mat", new Color(0.20f, 0.55f, 0.90f));
             var matNpc = CreateOrLoadMaterial("Mat_ElderMaren.mat", new Color(0.90f, 0.72f, 0.22f));
             var matEnemy = CreateOrLoadMaterial("Mat_Guardian.mat", new Color(0.82f, 0.24f, 0.24f));
-            var matTreeTrunk = CreateOrLoadMaterial("Mat_TreeTrunk.mat", new Color(0.42f, 0.28f, 0.16f));
-            var matTreeLeaves = CreateOrLoadMaterial("Mat_TreeLeaves.mat", new Color(0.18f, 0.58f, 0.28f));
 
             // ── Create ScriptableObject Assets ──
             var questFirstEcho = CreateOrLoadQuestAsset();
-            var biomeVerda = CreateOrLoadBiomeAsset();
+            var biomeVerda = CreateOrLoadBiomeAsset(envMats.TerrainLayers);
 
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -257,40 +263,17 @@ namespace EchoesOfTheLost.EditorTools
 
             // ── 3. Environment: Verda Wilds & Solenne Watchtower Ruins ──
             var envRoot = new GameObject("Environment_VerdaWilds").transform;
-
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ground.name = "Ground_VerdaWilds";
-            ground.transform.SetParent(envRoot, false);
-            ground.transform.localScale = new Vector3(30f, 1f, 30f);
-            ground.GetComponent<Renderer>().sharedMaterial = matGrass;
-
-            // Ruin Courtyard Platform & Steps
-            CreateBox("Ruin_Platform", envRoot, new Vector3(0f, 0.25f, 16f), new Vector3(16f, 0.5f, 14f), matStone);
-            CreateBox("Ruin_Step1", envRoot, new Vector3(0f, 0.12f, 8.5f), new Vector3(6f, 0.25f, 1.2f), matDarkStone);
-            CreateBox("Ruin_Step2", envRoot, new Vector3(0f, 0.25f, 9.5f), new Vector3(6f, 0.5f, 1.2f), matDarkStone);
-
-            // Ancient Pillars & Archway
-            CreateBox("Pillar_NW", envRoot, new Vector3(-6.5f, 2.5f, 21f), new Vector3(1.2f, 4.5f, 1.2f), matDarkStone);
-            CreateBox("Pillar_NE", envRoot, new Vector3(6.5f, 2.5f, 21f), new Vector3(1.2f, 4.5f, 1.2f), matDarkStone);
-            CreateBox("Pillar_SW", envRoot, new Vector3(-6.5f, 2.0f, 11f), new Vector3(1.2f, 3.5f, 1.2f), matDarkStone);
-            CreateBox("Pillar_SE", envRoot, new Vector3(6.5f, 2.0f, 11f), new Vector3(1.2f, 3.5f, 1.2f), matDarkStone);
-            CreateBox("Arch_Top", envRoot, new Vector3(0f, 5.0f, 21f), new Vector3(14.5f, 0.9f, 1.4f), matStone);
-
-            // Stylized Trees around the clearing
-            CreateStylizedTree("Tree_01", envRoot, new Vector3(-12f, 0f, 6f), matTreeTrunk, matTreeLeaves);
-            CreateStylizedTree("Tree_02", envRoot, new Vector3(12f, 0f, 7f), matTreeTrunk, matTreeLeaves);
-            CreateStylizedTree("Tree_03", envRoot, new Vector3(-14f, 0f, 20f), matTreeTrunk, matTreeLeaves);
-            CreateStylizedTree("Tree_04", envRoot, new Vector3(14f, 0f, 22f), matTreeTrunk, matTreeLeaves);
+            BuildRichEnvironment(envRoot, matGrass, matGrassTuft, matEarth, matRoad, matRock, matStone, matMountain, matTreeTrunk, matTreeLeaves);
 
             // ── 4. Solenne Echo Crystals (Collectibles / Lore Nodes) ──
-            CreateEchoCrystal("EchoCrystal_West", envRoot, new Vector3(-4.5f, 1.6f, 15f), matDarkStone, matCrystal,
+            CreateEchoCrystal("EchoCrystal_West", envRoot, new Vector3(-4.5f, 1.6f, 15f), matRock, matCrystal,
                 new[]
                 {
                     "[ECHO RECORD #012 - VERDA WATCHTOWER]: The biological guardians have overgrown their neural limiters.",
                     "[ECHO RECORD #012]: Anyone reading this—do not let the Void Seekers reach the Central Spire!"
                 });
 
-            CreateEchoCrystal("EchoCrystal_East", envRoot, new Vector3(4.5f, 1.6f, 18f), matDarkStone, matCrystal,
+            CreateEchoCrystal("EchoCrystal_East", envRoot, new Vector3(4.5f, 1.6f, 18f), matRock, matCrystal,
                 new[]
                 {
                     "[ECHO RECORD #019 - ARCHIVIST SOLENNE]: We built the Unraveling protocol as a shield, not a weapon.",
@@ -376,6 +359,217 @@ namespace EchoesOfTheLost.EditorTools
 
         // ── World & Character Helpers ─────────────────────────
 
+        private static void BuildRichEnvironment(
+            Transform envRoot,
+            Material matGrass, Material matGrassTuft, Material matEarth,
+            Material matRoad, Material matRock, Material matStone,
+            Material matMountain, Material matTreeTrunk, Material matTreeLeaves)
+        {
+            // 1. KHỐI ĐẤT & THẢM CỎ (Earth Terraces & Lush Grass Blocks)
+            var earthGroup = new GameObject("01_Earth_And_Grass_Blocks").transform;
+            earthGroup.SetParent(envRoot, false);
+
+            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            ground.name = "Valley_Grass_Floor";
+            ground.transform.SetParent(earthGroup, false);
+            ground.transform.localScale = new Vector3(32f, 1f, 32f);
+            ground.GetComponent<Renderer>().sharedMaterial = matGrass;
+
+            // Terraced Earthen Hills with Grass Caps (Khối đất phân tầng phủ cỏ trên đỉnh)
+            CreateTerracedEarthBlock("EarthBlock_WestHill", earthGroup, new Vector3(-19f, 1.2f, 10f), new Vector3(12f, 2.4f, 22f), matEarth, matGrass);
+            CreateTerracedEarthBlock("EarthBlock_EastHill", earthGroup, new Vector3(19f, 1.4f, 12f), new Vector3(12f, 2.8f, 24f), matEarth, matGrass);
+            CreateTerracedEarthBlock("EarthBlock_SouthWest", earthGroup, new Vector3(-15f, 0.9f, -10f), new Vector3(14f, 1.8f, 12f), matEarth, matGrass);
+            CreateTerracedEarthBlock("EarthBlock_SouthEast", earthGroup, new Vector3(15f, 0.9f, -9f), new Vector3(14f, 1.8f, 12f), matEarth, matGrass);
+            CreateTerracedEarthBlock("EarthBlock_NorthSanctum", earthGroup, new Vector3(0f, 1.8f, 32f), new Vector3(28f, 3.6f, 12f), matEarth, matGrass);
+
+            // 2. ĐƯỜNG ĐI LÁT ĐÁ & CẦU CỔ (Cobblestone Road & Ancient Stone Bridge)
+            var roadGroup = new GameObject("02_Road_And_StoneBridge").transform;
+            roadGroup.SetParent(envRoot, false);
+
+            CreateBox("Road_SouthTrail", roadGroup, new Vector3(0f, 0.03f, -12f), new Vector3(3.8f, 0.06f, 12f), matRoad);
+            CreateBox("Road_BridgeApproach", roadGroup, new Vector3(0f, 0.04f, -3f), new Vector3(4.0f, 0.08f, 6f), matRoad);
+            CreateBox("Road_CampCourtyard", roadGroup, new Vector3(0f, 0.03f, 4f), new Vector3(4.6f, 0.06f, 8f), matRoad);
+            CreateBox("Road_WestBranch", roadGroup, new Vector3(-5.5f, 0.03f, 5.5f), new Vector3(6.5f, 0.06f, 2.6f), matRoad);
+            CreateBox("Road_EastBranch", roadGroup, new Vector3(5.5f, 0.03f, 6.5f), new Vector3(6.5f, 0.06f, 2.6f), matRoad);
+
+            // Road stone curbs & low bridge parapets
+            CreateBox("Bridge_Parapet_W", roadGroup, new Vector3(-2.3f, 0.45f, -3f), new Vector3(0.45f, 0.8f, 5.5f), matStone);
+            CreateBox("Bridge_Parapet_E", roadGroup, new Vector3(2.3f, 0.45f, -3f), new Vector3(0.45f, 0.8f, 5.5f), matStone);
+            CreateBox("Bridge_Post_SW", roadGroup, new Vector3(-2.3f, 0.75f, -5.8f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
+            CreateBox("Bridge_Post_SE", roadGroup, new Vector3(2.3f, 0.75f, -5.8f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
+            CreateBox("Bridge_Post_NW", roadGroup, new Vector3(-2.3f, 0.75f, -0.2f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
+            CreateBox("Bridge_Post_NE", roadGroup, new Vector3(2.3f, 0.75f, -0.2f), new Vector3(0.7f, 1.4f, 0.7f), matRock);
+
+            // 3. NÚI & VÁCH ĐÁ (Craggy Mountain Cliffs & Ridges)
+            var mountainGroup = new GameObject("03_Mountains_And_Cliffs").transform;
+            mountainGroup.SetParent(envRoot, false);
+
+            CreateMountainPeak("Mountain_NorthCenter", mountainGroup, new Vector3(0f, 0f, 48f), new Vector3(28f, 26f, 18f), matMountain);
+            CreateMountainPeak("Mountain_NorthWest", mountainGroup, new Vector3(-26f, 0f, 40f), new Vector3(24f, 22f, 20f), matMountain);
+            CreateMountainPeak("Mountain_NorthEast", mountainGroup, new Vector3(26f, 0f, 40f), new Vector3(24f, 24f, 20f), matMountain);
+            CreateMountainPeak("Mountain_WestWall", mountainGroup, new Vector3(-36f, 0f, 12f), new Vector3(18f, 18f, 38f), matMountain);
+            CreateMountainPeak("Mountain_EastWall", mountainGroup, new Vector3(36f, 0f, 12f), new Vector3(18f, 19f, 38f), matMountain);
+            CreateMountainPeak("Mountain_SouthWestRidge", mountainGroup, new Vector3(-30f, 0f, -22f), new Vector3(22f, 15f, 18f), matMountain);
+            CreateMountainPeak("Mountain_SouthEastRidge", mountainGroup, new Vector3(30f, 0f, -22f), new Vector3(22f, 16f, 18f), matMountain);
+
+            // 4. ĐÁ TẢNG & PHẾ TÍCH CỔ SOLENNE (Mossy Boulders & Ruin Masonry)
+            var rockGroup = new GameObject("04_Rocks_And_Ruins").transform;
+            rockGroup.SetParent(envRoot, false);
+
+            // Ruin Courtyard Platform & Steps
+            CreateBox("Ruin_Platform", rockGroup, new Vector3(0f, 0.25f, 16f), new Vector3(16f, 0.5f, 14f), matStone);
+            CreateBox("Ruin_Step1", rockGroup, new Vector3(0f, 0.12f, 8.5f), new Vector3(6f, 0.25f, 1.2f), matRock);
+            CreateBox("Ruin_Step2", rockGroup, new Vector3(0f, 0.25f, 9.5f), new Vector3(6f, 0.5f, 1.2f), matRock);
+
+            // Ancient Pillars & Archway
+            CreateBox("Pillar_NW", rockGroup, new Vector3(-6.5f, 2.5f, 21f), new Vector3(1.2f, 4.5f, 1.2f), matStone);
+            CreateBox("Pillar_NE", rockGroup, new Vector3(6.5f, 2.5f, 21f), new Vector3(1.2f, 4.5f, 1.2f), matStone);
+            CreateBox("Pillar_SW", rockGroup, new Vector3(-6.5f, 2.0f, 11f), new Vector3(1.2f, 3.5f, 1.2f), matStone);
+            CreateBox("Pillar_SE", rockGroup, new Vector3(6.5f, 2.0f, 11f), new Vector3(1.2f, 3.5f, 1.2f), matStone);
+            CreateBox("Arch_Top", rockGroup, new Vector3(0f, 5.0f, 21f), new Vector3(14.5f, 0.9f, 1.4f), matStone);
+
+            // Natural Mossy Rock Clusters scattered around the valley
+            CreateRockCluster("RockCluster_01", rockGroup, new Vector3(-9.5f, 0f, 4.5f), 1.4f, matRock);
+            CreateRockCluster("RockCluster_02", rockGroup, new Vector3(9.5f, 0f, 5.0f), 1.6f, matRock);
+            CreateRockCluster("RockCluster_03", rockGroup, new Vector3(-11.5f, 0f, 15.5f), 1.8f, matRock);
+            CreateRockCluster("RockCluster_04", rockGroup, new Vector3(11.5f, 0f, 16.5f), 1.7f, matRock);
+            CreateRockCluster("RockCluster_05", rockGroup, new Vector3(-6.5f, 0f, -6.5f), 1.3f, matRock);
+            CreateRockCluster("RockCluster_06", rockGroup, new Vector3(7.0f, 0f, -5.5f), 1.5f, matRock);
+
+            // 5. CÂY RỪNG (Multi-Layered Trees with Bark & Canopy Foliage)
+            var treeGroup = new GameObject("05_Trees_And_Canopies").transform;
+            treeGroup.SetParent(envRoot, false);
+
+            CreateStylizedTree("Tree_01", treeGroup, new Vector3(-11.5f, 0f, 6.5f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_02", treeGroup, new Vector3(11.5f, 0f, 7.5f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_03", treeGroup, new Vector3(-13.5f, 0f, 20f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_04", treeGroup, new Vector3(13.5f, 0f, 21.5f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_05", treeGroup, new Vector3(-8.5f, 0f, -8.5f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_06", treeGroup, new Vector3(8.5f, 0f, -7.5f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_07", treeGroup, new Vector3(-17f, 2.4f, 12f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_08", treeGroup, new Vector3(17f, 2.8f, 14f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_09", treeGroup, new Vector3(-7f, 3.6f, 30f), matTreeTrunk, matTreeLeaves);
+            CreateStylizedTree("Tree_10", treeGroup, new Vector3(7f, 3.6f, 30f), matTreeTrunk, matTreeLeaves);
+
+            // 6. BỤI CỎ 3D (3D Lush Grass Tufts & Shrubs)
+            var grassGroup = new GameObject("06_Grass_Tufts_And_Shrubs").transform;
+            grassGroup.SetParent(envRoot, false);
+
+            Vector3[] tuftPositions =
+            {
+                new Vector3(-3.2f, 0f, 2.2f), new Vector3(3.2f, 0f, 2.6f),
+                new Vector3(-4.0f, 0f, 7.2f), new Vector3(4.2f, 0f, 7.4f),
+                new Vector3(-8.2f, 0f, 5.2f), new Vector3(8.2f, 0f, 5.8f),
+                new Vector3(-9.8f, 0f, 12.0f), new Vector3(9.8f, 0f, 12.5f),
+                new Vector3(-3.5f, 0f, -4.5f), new Vector3(3.6f, 0f, -4.2f),
+                new Vector3(-5.2f, 0f, -9.0f), new Vector3(5.4f, 0f, -8.8f)
+            };
+            for (int i = 0; i < tuftPositions.Length; i++)
+            {
+                CreateGrassTuft($"GrassTuft_{i + 1:00}", grassGroup, tuftPositions[i], matGrassTuft);
+            }
+        }
+
+        private static void CreateTerracedEarthBlock(string name, Transform parent, Vector3 pos, Vector3 scale, Material earthMat, Material grassMat)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.position = pos;
+
+            // Main earthen cliff body
+            var earth = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            earth.name = "Earth_Body";
+            earth.transform.SetParent(root, false);
+            earth.transform.localPosition = Vector3.zero;
+            earth.transform.localScale = scale;
+            earth.GetComponent<Renderer>().sharedMaterial = earthMat;
+
+            // Lush grass top cap overhanging slightly
+            var grassTop = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            grassTop.name = "Grass_TopCap";
+            grassTop.transform.SetParent(root, false);
+            grassTop.transform.localPosition = new Vector3(0f, scale.y * 0.5f + 0.12f, 0f);
+            grassTop.transform.localScale = new Vector3(scale.x + 0.35f, 0.28f, scale.z + 0.35f);
+            grassTop.GetComponent<Renderer>().sharedMaterial = grassMat;
+        }
+
+        private static void CreateMountainPeak(string name, Transform parent, Vector3 basePos, Vector3 size, Material mountainMat)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.position = basePos;
+
+            // Base cliff block
+            var lower = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            lower.name = "Cliff_Base";
+            lower.transform.SetParent(root, false);
+            lower.transform.localPosition = new Vector3(0f, size.y * 0.28f, 0f);
+            lower.transform.localScale = new Vector3(size.x, size.y * 0.56f, size.z);
+            lower.transform.localRotation = Quaternion.Euler(0f, 8f, 0f);
+            lower.GetComponent<Renderer>().sharedMaterial = mountainMat;
+
+            // Mid crag
+            var mid = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            mid.name = "Cliff_MidCrag";
+            mid.transform.SetParent(root, false);
+            mid.transform.localPosition = new Vector3(size.x * 0.05f, size.y * 0.62f, -size.z * 0.04f);
+            mid.transform.localScale = new Vector3(size.x * 0.72f, size.y * 0.48f, size.z * 0.74f);
+            mid.transform.localRotation = Quaternion.Euler(4f, -12f, 3f);
+            mid.GetComponent<Renderer>().sharedMaterial = mountainMat;
+
+            // Ridge summit
+            var peak = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            peak.name = "Cliff_Summit";
+            peak.transform.SetParent(root, false);
+            peak.transform.localPosition = new Vector3(-size.x * 0.04f, size.y * 0.88f, size.z * 0.03f);
+            peak.transform.localScale = new Vector3(size.x * 0.44f, size.y * 0.36f, size.z * 0.46f);
+            peak.transform.localRotation = Quaternion.Euler(-5f, 18f, -4f);
+            peak.GetComponent<Renderer>().sharedMaterial = mountainMat;
+        }
+
+        private static void CreateRockCluster(string name, Transform parent, Vector3 pos, float scale, Material rockMat)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.position = pos;
+
+            var mainRock = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            mainRock.name = "Boulder_Main";
+            mainRock.transform.SetParent(root, false);
+            mainRock.transform.localPosition = new Vector3(0f, 0.45f * scale, 0f);
+            mainRock.transform.localScale = new Vector3(1.5f * scale, 1.05f * scale, 1.35f * scale);
+            mainRock.transform.localRotation = Quaternion.Euler(12f, 28f, -8f);
+            mainRock.GetComponent<Renderer>().sharedMaterial = rockMat;
+
+            var sideRock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            sideRock.name = "Boulder_Slab";
+            sideRock.transform.SetParent(root, false);
+            sideRock.transform.localPosition = new Vector3(0.75f * scale, 0.30f * scale, 0.35f * scale);
+            sideRock.transform.localScale = new Vector3(0.95f * scale, 0.65f * scale, 0.85f * scale);
+            sideRock.transform.localRotation = Quaternion.Euler(-8f, -35f, 14f);
+            sideRock.GetComponent<Renderer>().sharedMaterial = rockMat;
+        }
+
+        private static void CreateGrassTuft(string name, Transform parent, Vector3 pos, Material tuftMat)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.position = pos;
+
+            for (int i = 0; i < 3; i++)
+            {
+                var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                blade.name = $"GrassBlade_{i}";
+                blade.transform.SetParent(root, false);
+                float angle = i * 60f;
+                blade.transform.localPosition = new Vector3(Mathf.Cos(angle) * 0.18f, 0.28f, Mathf.Sin(angle) * 0.18f);
+                blade.transform.localRotation = Quaternion.Euler(10f, angle, 0f);
+                blade.transform.localScale = new Vector3(0.75f, 0.55f, 0.12f);
+                blade.GetComponent<Renderer>().sharedMaterial = tuftMat;
+                Object.DestroyImmediate(blade.GetComponent<Collider>());
+            }
+        }
+
         private static void CreateBox(string name, Transform parent, Vector3 pos, Vector3 scale, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -395,17 +589,34 @@ namespace EchoesOfTheLost.EditorTools
             var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             trunk.name = "Trunk";
             trunk.transform.SetParent(root, false);
-            trunk.transform.localPosition = new Vector3(0f, 1.8f, 0f);
-            trunk.transform.localScale = new Vector3(0.6f, 1.8f, 0.6f);
+            trunk.transform.localPosition = new Vector3(0f, 1.9f, 0f);
+            trunk.transform.localScale = new Vector3(0.65f, 1.9f, 0.65f);
             trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
 
-            var crown = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            crown.name = "Canopy";
-            crown.transform.SetParent(root, false);
-            crown.transform.localPosition = new Vector3(0f, 4.2f, 0f);
-            crown.transform.localScale = new Vector3(3.2f, 2.6f, 3.2f);
-            crown.GetComponent<Renderer>().sharedMaterial = leafMat;
-            Object.DestroyImmediate(crown.GetComponent<Collider>());
+            // Multi-layered lush canopy spheres
+            var crownMain = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            crownMain.name = "Canopy_Main";
+            crownMain.transform.SetParent(root, false);
+            crownMain.transform.localPosition = new Vector3(0f, 4.3f, 0f);
+            crownMain.transform.localScale = new Vector3(3.6f, 2.5f, 3.6f);
+            crownMain.GetComponent<Renderer>().sharedMaterial = leafMat;
+            Object.DestroyImmediate(crownMain.GetComponent<Collider>());
+
+            var crownUpper = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            crownUpper.name = "Canopy_Upper";
+            crownUpper.transform.SetParent(root, false);
+            crownUpper.transform.localPosition = new Vector3(0.3f, 5.5f, -0.2f);
+            crownUpper.transform.localScale = new Vector3(2.5f, 1.9f, 2.5f);
+            crownUpper.GetComponent<Renderer>().sharedMaterial = leafMat;
+            Object.DestroyImmediate(crownUpper.GetComponent<Collider>());
+
+            var crownSide = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            crownSide.name = "Canopy_LowerSide";
+            crownSide.transform.SetParent(root, false);
+            crownSide.transform.localPosition = new Vector3(-0.9f, 3.6f, 0.6f);
+            crownSide.transform.localScale = new Vector3(2.3f, 1.7f, 2.3f);
+            crownSide.GetComponent<Renderer>().sharedMaterial = leafMat;
+            Object.DestroyImmediate(crownSide.GetComponent<Collider>());
         }
 
         private static void CreateEchoCrystal(string name, Transform parent, Vector3 pos, Material pedestalMat, Material crystalMat, string[] lines)
@@ -746,10 +957,18 @@ namespace EchoesOfTheLost.EditorTools
             return q;
         }
 
-        private static BiomeData CreateOrLoadBiomeAsset()
+        private static BiomeData CreateOrLoadBiomeAsset(TerrainLayer[] terrainLayers = null)
         {
             var existing = AssetDatabase.LoadAssetAtPath<BiomeData>(BiomeAssetPath);
-            if (existing != null) return existing;
+            if (existing != null)
+            {
+                if (terrainLayers != null && terrainLayers.Length > 0)
+                {
+                    existing.terrainLayers = terrainLayers;
+                    EditorUtility.SetDirty(existing);
+                }
+                return existing;
+            }
 
             Directory.CreateDirectory(Path.GetDirectoryName(BiomeAssetPath));
             var b = ScriptableObject.CreateInstance<BiomeData>();
@@ -758,6 +977,7 @@ namespace EchoesOfTheLost.EditorTools
             b.description = "Lush emerald forests and ancient Solenne watchtower ruins.";
             b.fogColor = new Color(0.68f, 0.82f, 0.90f);
             b.fogDensity = 0.004f;
+            b.terrainLayers = terrainLayers;
             AssetDatabase.CreateAsset(b, BiomeAssetPath);
             return b;
         }
