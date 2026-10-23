@@ -27,6 +27,10 @@ namespace EchoesOfTheLost.EditorTools
         private const string OakPrefabPath = PrefabDir + "/PF_VerdaOakTree.prefab";
         private const string PinePrefabPath = PrefabDir + "/PF_VerdaPineTree.prefab";
         private const string GrassDetailPrefabPath = PrefabDir + "/PF_TerrainGrassDetail.prefab";
+        private const string FlowerYellowPrefabPath = PrefabDir + "/PF_FlowerCluster_Yellow.prefab";
+        private const string FlowerRedPrefabPath = PrefabDir + "/PF_FlowerCluster_Red.prefab";
+        private const string FlowerBluePrefabPath = PrefabDir + "/PF_FlowerCluster_Blue.prefab";
+        private const string FlowerPurplePrefabPath = PrefabDir + "/PF_FlowerCluster_Purple.prefab";
 
         private const int HeightRes = 257;
         private const int AlphaRes = 256;
@@ -208,10 +212,12 @@ namespace EchoesOfTheLost.EditorTools
                     float dz = worldZ - 10f;
                     float distFromSanctuary = Mathf.Sqrt(dx * dx + (dz * 0.85f) * (dz * 0.85f));
 
-                    // 1. Gentle rolling meadow hills in mid-ground (r = 25..65m)
-                    float hillNoise = FBM(worldX * 0.018f + 11.3f, worldZ * 0.018f + 27.9f, 3);
-                    float hillMask = SmoothRange(22f, 52f, distFromSanctuary);
-                    float hillHeight = hillNoise * 0.11f * hillMask;
+                    // 1. Undulating rolling meadow hills with high/low variation ("thảm cỏ trải dài cao thấp")
+                    float primaryRolling = FBM(worldX * 0.020f + 11.3f, worldZ * 0.020f + 27.9f, 3);
+                    float secondarySwells = Mathf.Sin(worldX * 0.042f + 1.7f) * Mathf.Cos(worldZ * 0.038f + 2.4f) * 0.5f + 0.5f;
+                    float hillNoise = primaryRolling * 0.70f + secondarySwells * 0.30f;
+                    float hillMask = SmoothRange(20f, 54f, distFromSanctuary);
+                    float hillHeight = hillNoise * 0.14f * hillMask;
 
                     // 2. Outer Mountain Ring (r > 52m) with ridged alpine peaks
                     float mountainMask = SmoothRange(48f, 98f, distFromSanctuary);
@@ -469,13 +475,17 @@ namespace EchoesOfTheLost.EditorTools
             }
             td.SetTreeInstances(trees.ToArray(), snapToHeightmap: true);
 
-            // 2. Create / Update 3D Grass Detail Prototype & Paint Detail Layer
+            // 2. Create / Update 3D Grass Detail & 4 Distinct Flower Prototypes (Yellow, Red, Blue, Purple)
             GameObject grassDetailPrefab = CreateOrUpdateGrassDetailPrefab(GrassDetailPrefabPath, envMats.GrassTuft);
+            GameObject flowerYellowPrefab = CreateOrUpdateFlowerDetailPrefab(FlowerYellowPrefabPath, envMats.FlowerYellow, envMats.FlowerStem);
+            GameObject flowerRedPrefab = CreateOrUpdateFlowerDetailPrefab(FlowerRedPrefabPath, envMats.FlowerRed, envMats.FlowerStem);
+            GameObject flowerBluePrefab = CreateOrUpdateFlowerDetailPrefab(FlowerBluePrefabPath, envMats.FlowerBlue, envMats.FlowerStem);
+            GameObject flowerPurplePrefab = CreateOrUpdateFlowerDetailPrefab(FlowerPurplePrefabPath, envMats.FlowerPurple, envMats.FlowerStem);
 
             td.SetDetailScatterMode(DetailScatterMode.InstanceCountMode);
-            td.SetDetailResolution(256, 16);
+            td.SetDetailResolution(DetailRes, 16);
 
-            var detailProto = new DetailPrototype
+            var grassProto = new DetailPrototype
             {
                 prototype = grassDetailPrefab,
                 usePrototypeMesh = true,
@@ -489,12 +499,79 @@ namespace EchoesOfTheLost.EditorTools
                 dryColor = new Color(0.62f, 0.76f, 0.30f)
             };
 
-            td.detailPrototypes = new[] { detailProto };
+            var flowerYellowProto = new DetailPrototype
+            {
+                prototype = flowerYellowPrefab,
+                usePrototypeMesh = true,
+                renderMode = DetailRenderMode.VertexLit,
+                useInstancing = true,
+                minWidth = 0.75f,
+                maxWidth = 1.30f,
+                minHeight = 0.70f,
+                maxHeight = 1.25f,
+                healthyColor = new Color(1.0f, 0.86f, 0.18f),
+                dryColor = new Color(0.92f, 0.74f, 0.14f)
+            };
+
+            var flowerRedProto = new DetailPrototype
+            {
+                prototype = flowerRedPrefab,
+                usePrototypeMesh = true,
+                renderMode = DetailRenderMode.VertexLit,
+                useInstancing = true,
+                minWidth = 0.75f,
+                maxWidth = 1.30f,
+                minHeight = 0.70f,
+                maxHeight = 1.25f,
+                healthyColor = new Color(0.95f, 0.28f, 0.24f),
+                dryColor = new Color(0.80f, 0.20f, 0.18f)
+            };
+
+            var flowerBlueProto = new DetailPrototype
+            {
+                prototype = flowerBluePrefab,
+                usePrototypeMesh = true,
+                renderMode = DetailRenderMode.VertexLit,
+                useInstancing = true,
+                minWidth = 0.75f,
+                maxWidth = 1.30f,
+                minHeight = 0.70f,
+                maxHeight = 1.25f,
+                healthyColor = new Color(0.28f, 0.62f, 0.98f),
+                dryColor = new Color(0.20f, 0.48f, 0.82f)
+            };
+
+            var flowerPurpleProto = new DetailPrototype
+            {
+                prototype = flowerPurplePrefab,
+                usePrototypeMesh = true,
+                renderMode = DetailRenderMode.VertexLit,
+                useInstancing = true,
+                minWidth = 0.75f,
+                maxWidth = 1.30f,
+                minHeight = 0.70f,
+                maxHeight = 1.25f,
+                healthyColor = new Color(0.72f, 0.38f, 0.92f),
+                dryColor = new Color(0.58f, 0.28f, 0.78f)
+            };
+
+            td.detailPrototypes = new[]
+            {
+                grassProto,
+                flowerYellowProto,
+                flowerRedProto,
+                flowerBlueProto,
+                flowerPurpleProto
+            };
             td.RefreshPrototypes();
 
             int detW = td.detailWidth;
             int detH = td.detailHeight;
-            int[,] detailLayer = new int[detH, detW];
+            int[,] grassMap = new int[detH, detW];
+            int[,] yellowMap = new int[detH, detW];
+            int[,] redMap = new int[detH, detW];
+            int[,] blueMap = new int[detH, detW];
+            int[,] purpleMap = new int[detH, detW];
 
             for (int y = 0; y < detH; y++)
             {
@@ -506,28 +583,70 @@ namespace EchoesOfTheLost.EditorTools
                     float normX = (float)x / (detW - 1);
                     float worldX = TerrainOrigin.x + normX * TerrainSize.x;
 
-                    // Skip road, ruin platform, and steep cliffs
+                    // Skip central ruin platform & cobblestone road
                     if (Mathf.Abs(worldX) < 9.5f && worldZ > 7.5f && worldZ < 24f)
                         continue;
-                    if (worldZ <= 12f && Mathf.Abs(worldX - RoadCenterX(worldZ)) < 3.4f)
+                    if (worldZ <= 12f && Mathf.Abs(worldX - RoadCenterX(worldZ)) < 2.8f)
                         continue;
-                    if (Mathf.Abs(worldX) <= 13f && Mathf.Abs(worldZ - 6.0f) < 2.2f)
+                    if (Mathf.Abs(worldX) <= 13f && Mathf.Abs(worldZ - 6.0f) < 2.0f)
                         continue;
 
                     float slope = td.GetSteepness(normX, normZ);
                     float altitude = td.GetInterpolatedHeight(normX, normZ);
-                    if (slope > 26f || altitude > 11f)
+                    if (slope > 28f || altitude > 13f)
                         continue;
 
+                    // 1. Continuous rolling grass carpet ("thảm cỏ trải dài cao thấp")
                     float meadowNoise = FBM(worldX * 0.12f + 17.1f, worldZ * 0.12f + 31.4f, 2);
-                    if (meadowNoise > 0.34f)
+                    if (meadowNoise > 0.28f)
                     {
-                        detailLayer[y, x] = Mathf.Clamp(Mathf.RoundToInt((meadowNoise - 0.30f) * 14f), 2, 10);
+                        grassMap[y, x] = Mathf.Clamp(Mathf.RoundToInt((meadowNoise - 0.25f) * 15f), 3, 11);
+                    }
+
+                    // 2. Interspersed wildflower clusters (Yellow, Red, Blue, Purple)
+                    float distRoad = (worldZ <= 12f) ? Mathf.Abs(worldX - RoadCenterX(worldZ)) : 999f;
+                    float flowerNoise = FBM(worldX * 0.15f + 44.2f, worldZ * 0.15f + 88.6f, 2);
+
+                    // Roadside verge flower strip (matching reference Slow Roads image with yellow wildflowers along road)
+                    if (distRoad >= 2.9f && distRoad <= 6.8f && worldZ >= -110f && worldZ <= 10f)
+                    {
+                        if (flowerNoise > 0.38f)
+                        {
+                            int count = Mathf.Clamp(Mathf.RoundToInt((flowerNoise - 0.34f) * 16f), 3, 7);
+                            float roadsideHue = Hash(x * 19 + y * 31, 88.5f);
+                            if (roadsideHue < 0.65f)
+                                yellowMap[y, x] = count;
+                            else if (roadsideHue < 0.78f)
+                                redMap[y, x] = count;
+                            else if (roadsideHue < 0.89f)
+                                blueMap[y, x] = count;
+                            else
+                                purpleMap[y, x] = count;
+                        }
+                    }
+                    else if (flowerNoise > 0.46f)
+                    {
+                        // Open rolling meadow flower carpets: organic colored ribbons & zones
+                        int count = Mathf.Clamp(Mathf.RoundToInt((flowerNoise - 0.42f) * 15f), 2, 6);
+                        float zone = FBM(worldX * 0.055f + 14.2f, worldZ * 0.055f + 27.8f, 2);
+
+                        if (zone < 0.28f)
+                            yellowMap[y, x] = count;
+                        else if (zone < 0.52f)
+                            redMap[y, x] = count;
+                        else if (zone < 0.76f)
+                            blueMap[y, x] = count;
+                        else
+                            purpleMap[y, x] = count;
                     }
                 }
             }
 
-            td.SetDetailLayer(0, 0, 0, detailLayer);
+            td.SetDetailLayer(0, 0, 0, grassMap);
+            td.SetDetailLayer(0, 0, 1, yellowMap);
+            td.SetDetailLayer(0, 0, 2, redMap);
+            td.SetDetailLayer(0, 0, 3, blueMap);
+            td.SetDetailLayer(0, 0, 4, purpleMap);
         }
 
         // ── Procedural Mesh Prefab Builders for Terrain Prototypes ──
@@ -599,50 +718,172 @@ namespace EchoesOfTheLost.EditorTools
             return prefab;
         }
 
+        private static GameObject CreateOrUpdateFlowerDetailPrefab(string prefabPath, Material flowerMat, Material stemMat)
+        {
+            string meshPath = $"{TerrainDir}/Mesh_FlowerCluster.asset";
+            Mesh flowerMesh = BuildFlowerClusterMesh();
+            flowerMesh.name = "Mesh_FlowerCluster";
+
+            var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            if (existingMesh == null)
+            {
+                AssetDatabase.CreateAsset(flowerMesh, meshPath);
+            }
+            else
+            {
+                EditorUtility.CopySerialized(flowerMesh, existingMesh);
+                Object.DestroyImmediate(flowerMesh);
+                flowerMesh = existingMesh;
+            }
+
+            string goName = Path.GetFileNameWithoutExtension(prefabPath);
+            var tempGO = new GameObject(goName);
+            var mf = tempGO.AddComponent<MeshFilter>();
+            mf.sharedMesh = flowerMesh;
+
+            var mr = tempGO.AddComponent<MeshRenderer>();
+            mr.sharedMaterials = new[] { flowerMat, stemMat };
+            mr.shadowCastingMode = ShadowCastingMode.Off;
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(tempGO, prefabPath);
+            Object.DestroyImmediate(tempGO);
+            return prefab;
+        }
+
+        private static void AddLimbToCombines(Vector3 start, Vector3 end, float radius, List<CombineInstance> combines, Mesh cylMesh)
+        {
+            Vector3 delta = end - start;
+            float len = delta.magnitude;
+            if (len < 0.005f) return;
+            Vector3 mid = (start + end) * 0.5f;
+            Quaternion rot = Quaternion.FromToRotation(Vector3.up, delta.normalized);
+            combines.Add(new CombineInstance
+            {
+                mesh = cylMesh,
+                transform = Matrix4x4.TRS(mid, rot, new Vector3(radius * 2f, len * 0.5f, radius * 2f))
+            });
+        }
+
         private static Mesh BuildCombinedTreeMesh(bool isPine)
         {
-            // Extract primitive cylinder for trunk (Submesh 0) and spheres for canopy (Submesh 1)
             var cylGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             var sphGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             Mesh cylMesh = cylGO.GetComponent<MeshFilter>().sharedMesh;
             Mesh sphMesh = sphGO.GetComponent<MeshFilter>().sharedMesh;
 
-            var trunkCombine = new CombineInstance[1];
-            trunkCombine[0] = new CombineInstance
-            {
-                mesh = cylMesh,
-                transform = Matrix4x4.TRS(new Vector3(0f, 1.8f, 0f), Quaternion.identity, new Vector3(0.55f, 1.8f, 0.55f))
-            };
-            var trunkSubMesh = new Mesh();
-            trunkSubMesh.CombineMeshes(trunkCombine, true, true);
+            var trunkCombines = new List<CombineInstance>();
+            var canopyCombines = new List<CombineInstance>();
 
-            CombineInstance[] canopyCombine;
             if (isPine)
             {
-                canopyCombine = new[]
-                {
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 3.4f, 0f), Quaternion.identity, new Vector3(3.0f, 2.0f, 3.0f)) },
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 4.9f, 0f), Quaternion.identity, new Vector3(2.2f, 2.0f, 2.2f)) },
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 6.2f, 0f), Quaternion.identity, new Vector3(1.4f, 1.8f, 1.4f)) }
-                };
+                // Pine trunk (tall tapering cylinder)
+                AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0f, 3.8f, 0f), 0.42f, trunkCombines, cylMesh);
+                AddLimbToCombines(new Vector3(0f, 3.8f, 0f), new Vector3(0f, 7.2f, 0f), 0.26f, trunkCombines, cylMesh);
+
+                // Pine tiered foliage rings (graduating smaller upwards)
+                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 3.2f, 0f), Quaternion.identity, new Vector3(3.2f, 1.8f, 3.2f)) });
+                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 4.4f, 0f), Quaternion.identity, new Vector3(2.6f, 1.6f, 2.6f)) });
+                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 5.5f, 0f), Quaternion.identity, new Vector3(2.0f, 1.5f, 2.0f)) });
+                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 6.5f, 0f), Quaternion.identity, new Vector3(1.4f, 1.3f, 1.4f)) });
+                canopyCombines.Add(new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 7.4f, 0f), Quaternion.identity, new Vector3(0.9f, 1.1f, 0.9f)) });
             }
             else
             {
-                canopyCombine = new[]
+                // Organic Deciduous Tree with Visible Branches & Small Foliage Clumps ("cây có cành cây táng lá nhỏ")
+                // 1. Trunk Base & Mid
+                AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0.04f, 1.4f, 0.02f), 0.38f, trunkCombines, cylMesh);
+                AddLimbToCombines(new Vector3(0.04f, 1.4f, 0.02f), new Vector3(0.0f, 2.5f, 0.04f), 0.32f, trunkCombines, cylMesh);
+
+                // 2. 4 Primary Boughs spreading outward and upward
+                Vector3 boughOrigin = new Vector3(0.0f, 2.3f, 0.04f);
+                Vector3 boughNorth = new Vector3(-0.4f, 3.8f, 1.5f);
+                Vector3 boughSouth = new Vector3(0.5f, 3.7f, -1.4f);
+                Vector3 boughWest  = new Vector3(-1.5f, 3.9f, -0.3f);
+                Vector3 boughEast  = new Vector3(1.4f, 4.0f, 0.4f);
+                Vector3 boughCenter= new Vector3(0.08f, 4.3f, 0.02f);
+
+                AddLimbToCombines(boughOrigin, boughNorth, 0.22f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughOrigin, boughSouth, 0.22f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughOrigin, boughWest, 0.22f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughOrigin, boughEast, 0.22f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughOrigin, boughCenter, 0.24f, trunkCombines, cylMesh);
+
+                // 3. 10 Secondary Branches extending from boughs
+                Vector3 tipN1 = new Vector3(-1.0f, 4.9f, 2.2f);
+                Vector3 tipN2 = new Vector3(0.4f, 5.1f, 2.0f);
+                AddLimbToCombines(boughNorth, tipN1, 0.14f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughNorth, tipN2, 0.13f, trunkCombines, cylMesh);
+
+                Vector3 tipS1 = new Vector3(1.1f, 4.8f, -2.2f);
+                Vector3 tipS2 = new Vector3(-0.3f, 4.8f, -1.9f);
+                AddLimbToCombines(boughSouth, tipS1, 0.14f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughSouth, tipS2, 0.13f, trunkCombines, cylMesh);
+
+                Vector3 tipW1 = new Vector3(-2.3f, 4.8f, -0.9f);
+                Vector3 tipW2 = new Vector3(-2.1f, 5.1f, 0.6f);
+                AddLimbToCombines(boughWest, tipW1, 0.14f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughWest, tipW2, 0.13f, trunkCombines, cylMesh);
+
+                Vector3 tipE1 = new Vector3(2.3f, 4.9f, 1.0f);
+                Vector3 tipE2 = new Vector3(2.0f, 5.1f, -0.6f);
+                AddLimbToCombines(boughEast, tipE1, 0.14f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughEast, tipE2, 0.13f, trunkCombines, cylMesh);
+
+                Vector3 tipC1 = new Vector3(-0.4f, 5.6f, 0.3f);
+                Vector3 tipC2 = new Vector3(0.5f, 5.7f, -0.3f);
+                Vector3 tipTop = new Vector3(0.0f, 6.4f, 0.1f);
+                AddLimbToCombines(boughCenter, tipC1, 0.15f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughCenter, tipC2, 0.15f, trunkCombines, cylMesh);
+                AddLimbToCombines(boughCenter, tipTop, 0.11f, trunkCombines, cylMesh);
+
+                // 4. 22 Small Foliage Clumps ("táng lá nhỏ") nestled at tips and forks
+                Vector3[] foliageLocs =
                 {
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0f, 4.2f, 0f), Quaternion.identity, new Vector3(3.5f, 2.4f, 3.5f)) },
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(0.35f, 5.3f, -0.2f), Quaternion.identity, new Vector3(2.4f, 1.8f, 2.4f)) },
-                    new CombineInstance { mesh = sphMesh, transform = Matrix4x4.TRS(new Vector3(-0.85f, 3.6f, 0.5f), Quaternion.identity, new Vector3(2.2f, 1.6f, 2.2f)) }
+                    tipN1, tipN2,
+                    new Vector3(-0.4f, 4.0f, 1.5f), new Vector3(-0.7f, 4.4f, 1.8f),
+                    tipS1, tipS2,
+                    new Vector3(0.5f, 3.9f, -1.4f), new Vector3(0.8f, 4.3f, -1.8f),
+                    tipW1, tipW2,
+                    new Vector3(-1.5f, 4.1f, -0.3f), new Vector3(-1.8f, 4.5f, 0.1f),
+                    tipE1, tipE2,
+                    new Vector3(1.4f, 4.2f, 0.4f), new Vector3(1.8f, 4.6f, 0.2f),
+                    tipC1, tipC2, tipTop,
+                    new Vector3(0.1f, 4.5f, 0.0f), new Vector3(-0.5f, 5.0f, -0.2f), new Vector3(0.3f, 5.1f, 0.4f)
                 };
+
+                float[] scales =
+                {
+                    1.4f, 1.3f, 1.2f, 1.1f,
+                    1.4f, 1.3f, 1.2f, 1.1f,
+                    1.4f, 1.3f, 1.2f, 1.1f,
+                    1.4f, 1.3f, 1.2f, 1.1f,
+                    1.5f, 1.4f, 1.3f,
+                    1.2f, 1.1f, 1.1f
+                };
+
+                for (int i = 0; i < foliageLocs.Length; i++)
+                {
+                    float s = scales[i];
+                    canopyCombines.Add(new CombineInstance
+                    {
+                        mesh = sphMesh,
+                        transform = Matrix4x4.TRS(foliageLocs[i], Quaternion.Euler(i * 17f, i * 43f, 0f), new Vector3(s, s * 0.78f, s))
+                    });
+                }
             }
+
+            var trunkSubMesh = new Mesh();
+            trunkSubMesh.CombineMeshes(trunkCombines.ToArray(), true, true);
+
             var canopySubMesh = new Mesh();
-            canopySubMesh.CombineMeshes(canopyCombine, true, true);
+            canopySubMesh.CombineMeshes(canopyCombines.ToArray(), true, true);
 
             var finalCombine = new[]
             {
                 new CombineInstance { mesh = trunkSubMesh, transform = Matrix4x4.identity },
                 new CombineInstance { mesh = canopySubMesh, transform = Matrix4x4.identity }
             };
+
             var finalMesh = new Mesh();
             finalMesh.CombineMeshes(finalCombine, mergeSubMeshes: false, useMatrices: true);
             finalMesh.RecalculateBounds();
@@ -652,6 +893,88 @@ namespace EchoesOfTheLost.EditorTools
             Object.DestroyImmediate(canopySubMesh);
             Object.DestroyImmediate(cylGO);
             Object.DestroyImmediate(sphGO);
+
+            return finalMesh;
+        }
+
+        private static Mesh BuildFlowerClusterMesh()
+        {
+            var cylGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            var sphGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            var cubeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            Mesh cylMesh = cylGO.GetComponent<MeshFilter>().sharedMesh;
+            Mesh sphMesh = sphGO.GetComponent<MeshFilter>().sharedMesh;
+            Mesh cubeMesh = cubeGO.GetComponent<MeshFilter>().sharedMesh;
+
+            var stemCombines = new List<CombineInstance>();
+            var petalCombines = new List<CombineInstance>();
+
+            // 1. Center blossom
+            AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0f, 0.40f, 0f), 0.024f, stemCombines, cylMesh);
+            petalCombines.Add(new CombineInstance
+            {
+                mesh = sphMesh,
+                transform = Matrix4x4.TRS(new Vector3(0f, 0.42f, 0f), Quaternion.identity, new Vector3(0.24f, 0.12f, 0.24f))
+            });
+
+            // 2. 4 Surrounding angled blossoms
+            Vector3[] flowerOffsets =
+            {
+                new Vector3(-0.16f, 0.36f, 0.08f),
+                new Vector3(0.18f, 0.38f, 0.06f),
+                new Vector3(0.05f, 0.33f, -0.17f),
+                new Vector3(-0.10f, 0.35f, -0.14f)
+            };
+
+            for (int i = 0; i < flowerOffsets.Length; i++)
+            {
+                Vector3 top = flowerOffsets[i];
+                AddLimbToCombines(new Vector3(top.x * 0.15f, 0.02f, top.z * 0.15f), top, 0.020f, stemCombines, cylMesh);
+                petalCombines.Add(new CombineInstance
+                {
+                    mesh = sphMesh,
+                    transform = Matrix4x4.TRS(top + new Vector3(0f, 0.02f, 0f), Quaternion.identity, new Vector3(0.20f, 0.10f, 0.20f))
+                });
+            }
+
+            // 3. Basal leaf blades (3 angled green slabs around base)
+            for (int i = 0; i < 3; i++)
+            {
+                float angle = i * 120f + 25f;
+                stemCombines.Add(new CombineInstance
+                {
+                    mesh = cubeMesh,
+                    transform = Matrix4x4.TRS(
+                        new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad) * 0.10f, 0.09f, Mathf.Sin(angle * Mathf.Deg2Rad) * 0.10f),
+                        Quaternion.Euler(22f, angle, 0f),
+                        new Vector3(0.18f, 0.03f, 0.30f))
+                });
+            }
+
+            var stemSubMesh = new Mesh();
+            stemSubMesh.CombineMeshes(stemCombines.ToArray(), true, true);
+
+            var petalSubMesh = new Mesh();
+            petalSubMesh.CombineMeshes(petalCombines.ToArray(), true, true);
+
+            // Submesh 0 = Petals (Vivid Flower Colors), Submesh 1 = Stems (Green)
+            var finalCombine = new[]
+            {
+                new CombineInstance { mesh = petalSubMesh, transform = Matrix4x4.identity },
+                new CombineInstance { mesh = stemSubMesh, transform = Matrix4x4.identity }
+            };
+
+            var finalMesh = new Mesh();
+            finalMesh.CombineMeshes(finalCombine, mergeSubMeshes: false, useMatrices: true);
+            finalMesh.RecalculateBounds();
+            finalMesh.RecalculateNormals();
+
+            Object.DestroyImmediate(stemSubMesh);
+            Object.DestroyImmediate(petalSubMesh);
+            Object.DestroyImmediate(cylGO);
+            Object.DestroyImmediate(sphGO);
+            Object.DestroyImmediate(cubeGO);
+
             return finalMesh;
         }
 
@@ -685,7 +1008,7 @@ namespace EchoesOfTheLost.EditorTools
 
         // ── Terrain Math & Spline Helpers ─────────────────────
 
-        private static float RoadCenterX(float worldZ)
+        public static float RoadCenterX(float worldZ)
         {
             if (worldZ >= -12f) return 0f;
             float t = (-worldZ - 12f) * 0.08f;

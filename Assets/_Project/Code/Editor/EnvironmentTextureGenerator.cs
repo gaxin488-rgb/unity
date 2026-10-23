@@ -28,6 +28,11 @@ namespace EchoesOfTheLost.EditorTools
         public Material TreeTrunk;
         public Material TreeLeaves;
         public Material Crystal;
+        public Material FlowerYellow;
+        public Material FlowerRed;
+        public Material FlowerBlue;
+        public Material FlowerPurple;
+        public Material FlowerStem;
         public TerrainLayer[] TerrainLayers;
     }
 
@@ -115,7 +120,15 @@ namespace EchoesOfTheLost.EditorTools
                     Color.white, smoothness: 0.16f, bumpScale: 1.05f, tiling: new Vector2(3f, 3f)),
 
                 Crystal = CreateOrUpdateEmissiveMaterial("Mat_EchoCrystal.mat",
-                    new Color(0.18f, 0.92f, 1.0f), new Color(0.12f, 0.78f, 0.95f) * 2.4f)
+                    new Color(0.18f, 0.92f, 1.0f), new Color(0.12f, 0.78f, 0.95f) * 2.4f),
+
+                // 4 Distinct Wildflower Materials: Yellow, Red, Blue, Purple + Green Stem
+                FlowerYellow = CreateOrUpdateVibrantFlowerMaterial("Mat_Flower_Yellow.mat", new Color(1.0f, 0.88f, 0.08f)),
+                FlowerRed = CreateOrUpdateVibrantFlowerMaterial("Mat_Flower_Red.mat", new Color(0.96f, 0.16f, 0.14f)),
+                FlowerBlue = CreateOrUpdateVibrantFlowerMaterial("Mat_Flower_Blue.mat", new Color(0.18f, 0.62f, 1.0f)),
+                FlowerPurple = CreateOrUpdateVibrantFlowerMaterial("Mat_Flower_Purple.mat", new Color(0.78f, 0.32f, 0.96f)),
+                FlowerStem = CreateOrUpdatePBRMaterial("Mat_Flower_Stem.mat", "Tex_Foliage",
+                    new Color(0.28f, 0.58f, 0.18f), smoothness: 0.14f, bumpScale: 0.9f, tiling: new Vector2(2f, 2f))
             };
 
             // Build Unity TerrainLayers for Terrain painting & BiomeData
@@ -493,6 +506,42 @@ namespace EchoesOfTheLost.EditorTools
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
             mat.enableInstancing = true;
+
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        private static Material CreateOrUpdateVibrantFlowerMaterial(string matFileName, Color vibrantColor)
+        {
+            string matPath = $"{MatDir}/{matFileName}";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, matPath);
+            }
+            else if (mat.shader != shader)
+            {
+                mat.shader = shader;
+            }
+
+            // Remove any dark texture so the pure vibrant blossom tint shines brilliantly
+            if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", null);
+            if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", null);
+            mat.mainTexture = null;
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", vibrantColor);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", vibrantColor);
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.35f);
+
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexDir}/Tex_Foliage_Normal.png");
+            if (normal != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.EnableKeyword("_NORMALMAP");
+                mat.SetTexture("_BumpMap", normal);
+                mat.SetFloat("_BumpScale", 0.65f);
+            }
 
             EditorUtility.SetDirty(mat);
             return mat;

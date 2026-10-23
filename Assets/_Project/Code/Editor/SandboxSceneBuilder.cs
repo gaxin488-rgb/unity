@@ -182,7 +182,7 @@ namespace EchoesOfTheLost.EditorTools
         [MenuItem("EotL/Setup/Build Sandbox Scene (Verda Wilds)")]
         public static void BuildFromMenu() => Build(silent: false);
 
-        private static void Build(bool silent)
+        public static void Build(bool silent = true)
         {
             if (EditorApplication.isCompiling || EditorApplication.isPlayingOrWillChangePlaymode) return;
 
@@ -246,6 +246,9 @@ namespace EchoesOfTheLost.EditorTools
             sunLight.shadows = LightShadows.Soft;
             lightGO.transform.rotation = Quaternion.Euler(48f, -35f, 0f);
             RenderSettings.sun = sunLight;
+            var skyMat = AssetDatabase.GetBuiltinExtraResource<Material>("Default-Skybox.mat");
+            if (skyMat != null) RenderSettings.skybox = skyMat;
+            RenderSettings.ambientMode = UnityEngine.Rendering.AmbientMode.Skybox;
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogDensity = 0.004f;
@@ -461,6 +464,12 @@ namespace EchoesOfTheLost.EditorTools
             {
                 CreateGrassTuft($"GrassTuft_{i + 1:00}", grassGroup, tuftPositions[i], matGrassTuft);
             }
+
+            // 7. RỘNG ĐƯỜNG MÒN: TƯỜNG ĐÁ & THẢM HOA DẠI SẶC SỠ (Rustic Dry-Stone Wall & 4-Color Wildflowers along curved road)
+            CreateRoadsideWallAndFlowers(
+                envRoot, matStone, matRock,
+                envMats.FlowerStem, envMats.FlowerYellow, envMats.FlowerRed, envMats.FlowerBlue, envMats.FlowerPurple,
+                matTreeTrunk, matTreeLeaves);
         }
 
         private static void CreateTerracedEarthBlock(string name, Transform parent, Vector3 pos, Vector3 scale, Material earthMat, Material grassMat)
@@ -579,37 +588,213 @@ namespace EchoesOfTheLost.EditorTools
             root.SetParent(parent, false);
             root.position = pos;
 
-            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            trunk.name = "Trunk";
-            trunk.transform.SetParent(root, false);
-            trunk.transform.localPosition = new Vector3(0f, 1.9f, 0f);
-            trunk.transform.localScale = new Vector3(0.65f, 1.9f, 0.65f);
-            trunk.GetComponent<Renderer>().sharedMaterial = trunkMat;
+            // Helper to create an angled branch cylinder
+            void AddBranch(string bName, Vector3 start, Vector3 end, float radius)
+            {
+                Vector3 delta = end - start;
+                float len = delta.magnitude;
+                if (len < 0.01f) return;
+                var cyl = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                cyl.name = bName;
+                cyl.transform.SetParent(root, false);
+                cyl.transform.localPosition = (start + end) * 0.5f;
+                cyl.transform.localRotation = Quaternion.FromToRotation(Vector3.up, delta.normalized);
+                cyl.transform.localScale = new Vector3(radius * 2f, len * 0.5f, radius * 2f);
+                cyl.GetComponent<Renderer>().sharedMaterial = trunkMat;
+                Object.DestroyImmediate(cyl.GetComponent<Collider>());
+            }
 
-            // Multi-layered lush canopy spheres
-            var crownMain = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            crownMain.name = "Canopy_Main";
-            crownMain.transform.SetParent(root, false);
-            crownMain.transform.localPosition = new Vector3(0f, 4.3f, 0f);
-            crownMain.transform.localScale = new Vector3(3.6f, 2.5f, 3.6f);
-            crownMain.GetComponent<Renderer>().sharedMaterial = leafMat;
-            Object.DestroyImmediate(crownMain.GetComponent<Collider>());
+            // Helper to create small foliage clump ("táng lá nhỏ")
+            void AddLeaf(string lName, Vector3 lPos, Vector3 lScale)
+            {
+                var sph = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                sph.name = lName;
+                sph.transform.SetParent(root, false);
+                sph.transform.localPosition = lPos;
+                sph.transform.localScale = lScale;
+                sph.GetComponent<Renderer>().sharedMaterial = leafMat;
+                Object.DestroyImmediate(sph.GetComponent<Collider>());
+            }
 
-            var crownUpper = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            crownUpper.name = "Canopy_Upper";
-            crownUpper.transform.SetParent(root, false);
-            crownUpper.transform.localPosition = new Vector3(0.3f, 5.5f, -0.2f);
-            crownUpper.transform.localScale = new Vector3(2.5f, 1.9f, 2.5f);
-            crownUpper.GetComponent<Renderer>().sharedMaterial = leafMat;
-            Object.DestroyImmediate(crownUpper.GetComponent<Collider>());
+            // 1. Trunk Base & Mid
+            AddBranch("Trunk_Base", new Vector3(0f, 0f, 0f), new Vector3(0.04f, 1.4f, 0.02f), 0.38f);
+            AddBranch("Trunk_Mid", new Vector3(0.04f, 1.4f, 0.02f), new Vector3(0.0f, 2.5f, 0.04f), 0.32f);
 
-            var crownSide = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            crownSide.name = "Canopy_LowerSide";
-            crownSide.transform.SetParent(root, false);
-            crownSide.transform.localPosition = new Vector3(-0.9f, 3.6f, 0.6f);
-            crownSide.transform.localScale = new Vector3(2.3f, 1.7f, 2.3f);
-            crownSide.GetComponent<Renderer>().sharedMaterial = leafMat;
-            Object.DestroyImmediate(crownSide.GetComponent<Collider>());
+            // 2. Primary Boughs
+            Vector3 origin = new Vector3(0.0f, 2.3f, 0.04f);
+            Vector3 bN = new Vector3(-0.4f, 3.8f, 1.5f);
+            Vector3 bS = new Vector3(0.5f, 3.7f, -1.4f);
+            Vector3 bW = new Vector3(-1.5f, 3.9f, -0.3f);
+            Vector3 bE = new Vector3(1.4f, 4.0f, 0.4f);
+            Vector3 bC = new Vector3(0.08f, 4.3f, 0.02f);
+
+            AddBranch("Bough_North", origin, bN, 0.22f);
+            AddBranch("Bough_South", origin, bS, 0.22f);
+            AddBranch("Bough_West",  origin, bW, 0.22f);
+            AddBranch("Bough_East",  origin, bE, 0.22f);
+            AddBranch("Bough_Center",origin, bC, 0.24f);
+
+            // 3. Secondary Branches
+            Vector3 tipN1 = new Vector3(-1.0f, 4.9f, 2.2f);
+            Vector3 tipN2 = new Vector3(0.4f, 5.1f, 2.0f);
+            AddBranch("Branch_N1", bN, tipN1, 0.14f);
+            AddBranch("Branch_N2", bN, tipN2, 0.13f);
+
+            Vector3 tipS1 = new Vector3(1.1f, 4.8f, -2.2f);
+            Vector3 tipS2 = new Vector3(-0.3f, 4.8f, -1.9f);
+            AddBranch("Branch_S1", bS, tipS1, 0.14f);
+            AddBranch("Branch_S2", bS, tipS2, 0.13f);
+
+            Vector3 tipW1 = new Vector3(-2.3f, 4.8f, -0.9f);
+            Vector3 tipW2 = new Vector3(-2.1f, 5.1f, 0.6f);
+            AddBranch("Branch_W1", bW, tipW1, 0.14f);
+            AddBranch("Branch_W2", bW, tipW2, 0.13f);
+
+            Vector3 tipE1 = new Vector3(2.3f, 4.9f, 1.0f);
+            Vector3 tipE2 = new Vector3(2.0f, 5.1f, -0.6f);
+            AddBranch("Branch_E1", bE, tipE1, 0.14f);
+            AddBranch("Branch_E2", bE, tipE2, 0.13f);
+
+            Vector3 tipC1 = new Vector3(-0.4f, 5.6f, 0.3f);
+            Vector3 tipC2 = new Vector3(0.5f, 5.7f, -0.3f);
+            Vector3 tipTop = new Vector3(0.0f, 6.4f, 0.1f);
+            AddBranch("Branch_C1", bC, tipC1, 0.15f);
+            AddBranch("Branch_C2", bC, tipC2, 0.15f);
+            AddBranch("Branch_Top", bC, tipTop, 0.11f);
+
+            // 4. 22 Small Foliage Clumps ("táng lá nhỏ")
+            Vector3[] foliageLocs =
+            {
+                tipN1, tipN2, new Vector3(-0.4f, 4.0f, 1.5f), new Vector3(-0.7f, 4.4f, 1.8f),
+                tipS1, tipS2, new Vector3(0.5f, 3.9f, -1.4f), new Vector3(0.8f, 4.3f, -1.8f),
+                tipW1, tipW2, new Vector3(-1.5f, 4.1f, -0.3f), new Vector3(-1.8f, 4.5f, 0.1f),
+                tipE1, tipE2, new Vector3(1.4f, 4.2f, 0.4f), new Vector3(1.8f, 4.6f, 0.2f),
+                tipC1, tipC2, tipTop,
+                new Vector3(0.1f, 4.5f, 0.0f), new Vector3(-0.5f, 5.0f, -0.2f), new Vector3(0.3f, 5.1f, 0.4f)
+            };
+
+            for (int i = 0; i < foliageLocs.Length; i++)
+            {
+                float s = (i % 3 == 0) ? 1.4f : ((i % 3 == 1) ? 1.25f : 1.15f);
+                AddLeaf($"LeafClump_{i}", foliageLocs[i], new Vector3(s, s * 0.78f, s));
+            }
+        }
+
+        private static void CreateRoadsideWallAndFlowers(
+            Transform parent,
+            Material stoneMat, Material rockMat,
+            Material stemMat, Material flowerYellow, Material flowerRed, Material flowerBlue, Material flowerPurple,
+            Material trunkMat, Material leafMat)
+        {
+            var wallGroup = new GameObject("07_Scenic_Roadside_Wall_And_Flowers").transform;
+            wallGroup.SetParent(parent, false);
+
+            var terrain = Terrain.activeTerrain;
+
+            // Follow curved winding road from z = -105 to z = -6
+            float stepZ = 3.2f;
+            for (float z = -105f; z <= -6f; z += stepZ)
+            {
+                float cx0 = TerrainWorldBuilder.RoadCenterX(z);
+                float cx1 = TerrainWorldBuilder.RoadCenterX(z + stepZ);
+                Vector3 p0 = new Vector3(cx0, 0f, z);
+                Vector3 p1 = new Vector3(cx1, 0f, z + stepZ);
+                Vector3 fwd = (p1 - p0).normalized;
+                Vector3 left = new Vector3(-fwd.z, 0f, fwd.x);
+
+                // Wall center on left shoulder (3.6m to left of road centerline)
+                Vector3 wallPos = (p0 + p1) * 0.5f + left * 3.6f;
+                float groundY = terrain != null ? terrain.SampleHeight(wallPos) : 0f;
+                wallPos.y = groundY + 0.42f;
+
+                Quaternion wallRot = Quaternion.LookRotation(fwd, Vector3.up);
+
+                // 1. Dry-stone wall block (rustic fieldstone rock texture)
+                var wallBlock = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wallBlock.name = $"StoneWall_{Mathf.RoundToInt(z)}";
+                wallBlock.transform.SetParent(wallGroup, false);
+                wallBlock.transform.position = wallPos;
+                wallBlock.transform.rotation = wallRot;
+                wallBlock.transform.localScale = new Vector3(0.58f, 0.85f, stepZ * 1.05f);
+                wallBlock.GetComponent<Renderer>().sharedMaterial = rockMat;
+
+                // Wall cap slab with slight rustic overhang
+                var wallCap = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                wallCap.name = $"WallCap_{Mathf.RoundToInt(z)}";
+                wallCap.transform.SetParent(wallGroup, false);
+                wallCap.transform.position = wallPos + new Vector3(0f, 0.45f, 0f);
+                wallCap.transform.rotation = wallRot;
+                wallCap.transform.localScale = new Vector3(0.72f, 0.14f, stepZ * 1.04f);
+                wallCap.GetComponent<Renderer>().sharedMaterial = rockMat;
+
+                // 2. Dense foreground wildflowers hugging the stone wall (Yellow, Red, Blue, Purple)
+                int flowerTuftsPerSegment = 4;
+                for (int f = 0; f < flowerTuftsPerSegment; f++)
+                {
+                    float t = (float)f / flowerTuftsPerSegment;
+                    Vector3 segPos = Vector3.Lerp(p0, p1, t) + left * (3.6f - 0.70f - (f % 2) * 0.45f);
+                    float fgY = terrain != null ? terrain.SampleHeight(segPos) : 0f;
+                    segPos.y = fgY;
+
+                    // Choose flower color: 60% Yellow (matching Slow Roads), 15% Red, 15% Blue, 10% Purple
+                    float roll = Mathf.Repeat(Mathf.Sin(z * 13.7f + f * 41.2f) * 43758.54f, 1f);
+                    Material flowerMat = flowerYellow;
+                    if (roll > 0.60f && roll <= 0.75f) flowerMat = flowerRed;
+                    else if (roll > 0.75f && roll <= 0.90f) flowerMat = flowerBlue;
+                    else if (roll > 0.90f) flowerMat = flowerPurple;
+
+                    CreateRoadsideFlowerCluster($"RoadsideFlower_{Mathf.RoundToInt(z)}_{f}", wallGroup, segPos, stemMat, flowerMat);
+                }
+            }
+
+            // 3. Majestic roadside branching trees along left verge framing the view
+            float[] roadsideTreeZs = { -22f, -52f, -82f };
+            for (int i = 0; i < roadsideTreeZs.Length; i++)
+            {
+                float tz = roadsideTreeZs[i];
+                float tcx = TerrainWorldBuilder.RoadCenterX(tz);
+                Vector3 treePos = new Vector3(tcx - 6.2f, 0f, tz);
+                if (terrain != null) treePos.y = terrain.SampleHeight(treePos);
+                CreateStylizedTree($"RoadsideTree_{i + 1}", wallGroup, treePos, trunkMat, leafMat);
+            }
+        }
+
+        private static void CreateRoadsideFlowerCluster(
+            string name, Transform parent, Vector3 pos, Material stemMat, Material blossomMat)
+        {
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.position = pos;
+
+            Vector3[] offsets =
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(-0.20f, 0f, 0.10f),
+                new Vector3(0.22f, 0f, -0.08f),
+                new Vector3(0.06f, 0f, 0.20f),
+                new Vector3(-0.14f, 0f, -0.16f),
+                new Vector3(0.18f, 0f, 0.14f)
+            };
+
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                float h = 0.32f + (i * 0.035f);
+                var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                stem.name = $"Stem_{i}";
+                stem.transform.SetParent(root, false);
+                stem.transform.localPosition = offsets[i] + new Vector3(0f, h * 0.5f, 0f);
+                stem.transform.localScale = new Vector3(0.038f, h * 0.5f, 0.038f);
+                stem.GetComponent<Renderer>().sharedMaterial = stemMat;
+                Object.DestroyImmediate(stem.GetComponent<Collider>());
+
+                var blossom = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                blossom.name = $"Blossom_{i}";
+                blossom.transform.SetParent(root, false);
+                blossom.transform.localPosition = offsets[i] + new Vector3(0f, h + 0.06f, 0f);
+                blossom.transform.localScale = new Vector3(0.28f, 0.15f, 0.28f);
+                blossom.GetComponent<Renderer>().sharedMaterial = blossomMat;
+                Object.DestroyImmediate(blossom.GetComponent<Collider>());
+            }
         }
 
         private static void CreateEchoCrystal(string name, Transform parent, Vector3 pos, Material pedestalMat, Material crystalMat, string[] lines)
