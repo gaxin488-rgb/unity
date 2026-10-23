@@ -1004,15 +1004,18 @@ namespace EchoesOfTheLost.EditorTools
 
         private static void SetObjectRef(Object target, string field, Object value)
         {
+            if (target == null) return;
             var so = new SerializedObject(target);
             var prop = so.FindProperty(field);
             if (prop == null) return;
             prop.objectReferenceValue = value;
             so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
         }
 
         private static void SetObjectArrayRef(Object target, string field, Object[] values)
         {
+            if (target == null) return;
             var so = new SerializedObject(target);
             var prop = so.FindProperty(field);
             if (prop == null) return;
@@ -1020,6 +1023,7 @@ namespace EchoesOfTheLost.EditorTools
             for (int i = 0; i < values.Length; i++)
                 prop.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
             so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
         }
 
         private static void SetLayerMask(Object target, string field, int mask)

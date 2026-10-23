@@ -50,6 +50,15 @@ namespace EchoesOfTheLost.Core
 
             if (_inputAsset == null)
             {
+#if UNITY_EDITOR
+                _inputAsset = UnityEditor.AssetDatabase.LoadAssetAtPath<InputActionAsset>("Assets/_Project/Settings/Input/PlayerInputActions.inputactions");
+#endif
+                if (_inputAsset == null)
+                    _inputAsset = Resources.Load<InputActionAsset>("PlayerInputActions");
+            }
+
+            if (_inputAsset == null)
+            {
                 Debug.LogError("[InputManager] Input asset is not assigned. Assign PlayerInputActions.inputactions in the inspector.", this);
                 enabled = false;
                 return;
