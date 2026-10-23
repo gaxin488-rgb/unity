@@ -38,7 +38,7 @@ namespace EchoesOfTheLost.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Sandbox.unity";
         private const string StampPath = "ProjectSettings/SandboxVersion.txt";
-        private const string BuilderVersion = "v4_terrain_world";
+        private const string BuilderVersion = "v5_ui_and_camera";
         private const string ControllerPath = "Assets/_Project/Art/Characters/Player/PlayerAnimator.controller";
         private const string InputPath = "Assets/_Project/Settings/Input/PlayerInputActions.inputactions";
         private const string MatDir = "Assets/_Project/Art/Materials";
@@ -332,17 +332,15 @@ namespace EchoesOfTheLost.EditorTools
             var combat = player.AddComponent<CombatManager>();
             SetLayerMask(combat, "_hitLayerMask", -1);
 
-            // ── 9. Main Camera ──
+            // ── 9 & 10. Main Camera, MiniMap Camera & Complete 4-Stage HUD Canvas ──
             var camGO = new GameObject("Main Camera") { tag = "MainCamera" };
             camGO.AddComponent<Camera>();
             camGO.AddComponent<AudioListener>();
             var follow = camGO.AddComponent<ThirdPersonCamera>();
             SetObjectRef(follow, "_target", player.transform);
-            camGO.transform.position = new Vector3(0f, 3f, -6f);
             SetObjectRef(pc, "_cameraTransform", camGO.transform);
 
-            // ── 10. Runtime HUD Canvas ──
-            BuildHUDCanvas();
+            UICanvasCameraBuilder.BuildCompleteUIAndCamera();
 
             // ── Save Scene & Version Stamp ──
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath));

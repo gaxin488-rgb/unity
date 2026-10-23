@@ -81,12 +81,14 @@
 
 | Task | Status | File |
 |------|--------|------|
-| `HUDController` (HP/Stamina, Level/XP/Gold, Đồng hồ/Thời tiết, Quest Tracker, Prompt `[E]`, Hộp thoại, Toast) | ✅ Done | `Assets/_Project/Code/UI/HUDController.cs` |
+| `HUDController` (HP/Stamina, Level/XP/Gold, Đồng hồ/Thời tiết, Quest Tracker, Prompt `[E]`, Hộp thoại, Toast slide/fade) | ✅ Done | `Assets/_Project/Code/UI/HUDController.cs` |
+| `UIElementAnimator` (Hoạt ảnh HUD: HP Damage Trail, Low-HP Pulse, Hotbar Slot Pop, Compass & Mini-Map Arrow, AnimatorClips) | ✅ Done | `Assets/_Project/Code/UI/UIElementAnimator.cs` |
 | `UIManager` (Cửa sổ Túi đồ `[Tab/I]`, Nhật ký Nhiệm vụ `[J]`, Nhân vật & Phe phái `[K]`, Pause & Sandbox `[Esc]`) | ✅ Done | `Assets/_Project/Code/UI/UIManager.cs` |
-| `MiniMapSystem` | ✅ Done | `Assets/_Project/Code/UI/MiniMapSystem.cs` |
+| `MiniMapSystem` & `MiniMap_Camera` (`RT_MiniMap.renderTexture` live overhead radar) | ✅ Done | `Assets/_Project/Code/UI/MiniMapSystem.cs` |
+| `UICanvasCameraBuilder` (4-Stage UI & Camera: Set Up Canvas -> On-Screen UI Elements & 9 Sprites -> UI Animator/Clips -> 3 Camera View Presets) | ✅ Done | `Assets/_Project/Code/Editor/UICanvasCameraBuilder.cs` |
 | `EnvironmentTextureGenerator` (16 PBR Textures `Albedo + Normal`, 10 URP Materials, 5 `TerrainLayer`s & URP Pipeline Asset) | ✅ Done | `Assets/_Project/Code/Editor/EnvironmentTextureGenerator.cs` |
 | `TerrainWorldBuilder` (4-Stage Unity Terrain: Build Terrain -> Paint 5-Layer Splatmap -> Add 155 Trees & 3D Grass Details -> Edit/Smooth Terrain) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
-| `SandboxSceneBuilder` (`v4_terrain_world` — tự động dựng toàn bộ Vertical Slice, PBR Materials & Unity Terrain) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
+| `SandboxSceneBuilder` (`v5_ui_and_camera` — tự động dựng toàn bộ Vertical Slice, PBR Materials, Unity Terrain, HUD Canvas & Camera Presets) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
 | `CoreSystemsVerifier` (`EotL/QA/Run Core Systems Self-Test`) | ✅ Done | `Assets/_Project/Code/Editor/CoreSystemsVerifier.cs` |
 
 ---
@@ -94,6 +96,7 @@
 ## 🎮 Hướng Dẫn Điều Khiển Trong Play Mode (`Sandbox.unity`)
 
 - **Di chuyển & Hành động:** `WASD` Di chuyển | `Mouse` Xoay Camera | `Shift` Chạy nhanh | `Space` Nhảy | `Ctrl` Lộn né (Roll)
+- **Góc nhìn Camera (`ThirdPersonCamera`):** `V` Đổi 3 góc nhìn (`Exploration` / `Close Action` / `Panoramic Tactical`) | `Con lăn chuột (Scroll)` Phóng to / Thu nhỏ khoảng cách Camera
 - **Chiến đấu:** `Chuột Trái (LMB)` Đánh thường (Combo 3 đòn) | `Chuột Phải (RMB)` Đánh mạnh (Heavy Attack)
 - **Tương tác:** `E` Trò chuyện với **Elder Maren**, giải mã **Solenne Echo Crystals**, hoặc tiếp tục hội thoại
 - **Giao diện (UI Modals):**

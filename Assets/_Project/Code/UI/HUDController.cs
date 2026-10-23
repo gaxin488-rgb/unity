@@ -248,7 +248,36 @@ namespace EchoesOfTheLost.UI
         {
             _toastRoot.SetActive(true);
             _toastText.text = message;
-            yield return new WaitForSecondsRealtime(duration);
+
+            var cg = _toastRoot.GetComponent<CanvasGroup>();
+            var rt = _toastRoot.GetComponent<RectTransform>();
+            Vector2 basePos = rt != null ? new Vector2(0f, -64f) : Vector2.zero;
+
+            // Slide-in & fade-in animation (0.25s)
+            float elapsed = 0f;
+            while (elapsed < 0.25f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float k = Mathf.SmoothStep(0f, 1f, elapsed / 0.25f);
+                if (cg != null) cg.alpha = k;
+                if (rt != null) rt.anchoredPosition = Vector2.Lerp(basePos + new Vector2(0f, 28f), basePos, k);
+                yield return null;
+            }
+            if (cg != null) cg.alpha = 1f;
+            if (rt != null) rt.anchoredPosition = basePos;
+
+            yield return new WaitForSecondsRealtime(Mathf.Max(0.2f, duration - 0.5f));
+
+            // Fade-out animation (0.25s)
+            elapsed = 0f;
+            while (elapsed < 0.25f)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                float k = 1f - Mathf.SmoothStep(0f, 1f, elapsed / 0.25f);
+                if (cg != null) cg.alpha = k;
+                yield return null;
+            }
+
             _toastRoot.SetActive(false);
         }
 
