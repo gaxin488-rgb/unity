@@ -57,6 +57,14 @@ namespace EchoesOfTheLost.Systems.Combat
         [SerializeField] private float _lightHitShakeIntensity = 0.15f;
         [SerializeField] private float _heavyHitShakeIntensity = 0.4f;
 
+        [Header("Combat Audio Effects")]
+        [SerializeField] private AudioClip _lightAttackSfx;
+        [SerializeField] private AudioClip _heavyAttackSfx;
+        [SerializeField] private AudioClip _hitImpactSfx;
+        [SerializeField] private AudioClip _parrySfx;
+        [SerializeField] private AudioClip _blockSfx;
+        private AudioSource _combatAudioSource;
+
         // ── Components ────────────────────────────────────────
         private Characters.Player.PlayerStats _playerStats;
         private Animator _animator;
@@ -95,6 +103,37 @@ namespace EchoesOfTheLost.Systems.Combat
             _playerStats = GetComponent<Characters.Player.PlayerStats>();
             _animator = GetComponent<Animator>();
             _inventory = GetComponent<Systems.Inventory.InventoryManager>();
+
+            _combatAudioSource = GetComponent<AudioSource>();
+            if (_combatAudioSource == null)
+            {
+                _combatAudioSource = gameObject.AddComponent<AudioSource>();
+                _combatAudioSource.spatialBlend = 0.65f;
+                _combatAudioSource.playOnAwake = false;
+            }
+        }
+
+        public void ConfigureCombatAudio(AudioClip lightSlash, AudioClip heavySlash, AudioClip hitImpact, AudioClip parry, AudioClip block)
+        {
+            _lightAttackSfx = lightSlash;
+            _heavyAttackSfx = heavySlash;
+            _hitImpactSfx = hitImpact;
+            _parrySfx = parry;
+            _blockSfx = block;
+        }
+
+        private void PlayCombatSound(AudioClip clip, float volume = 1f)
+        {
+            if (clip == null) return;
+            if (_combatAudioSource != null)
+            {
+                _combatAudioSource.pitch = Random.Range(0.94f, 1.06f);
+                _combatAudioSource.PlayOneShot(clip, volume);
+            }
+            else if (AudioManager.Instance != null)
+            {
+                AudioManager.Instance.PlaySFX(clip, volume);
+            }
         }
 
         private void OnEnable()
@@ -159,6 +198,8 @@ namespace EchoesOfTheLost.Systems.Combat
                 _animator.SetTrigger(_animHeavyAttack);
             else
                 _animator.SetTrigger(_animLightAttack);
+
+            PlayCombatSound(_attackIsHeavy ? _heavyAttackSfx : _lightAttackSfx);
 
             _hitTargetsThisSwing.Clear();
 
@@ -270,6 +311,7 @@ namespace EchoesOfTheLost.Systems.Combat
 
             damageable.TakeDamage(info);
             OnAttackLanded?.Invoke(info);
+            PlayCombatSound(_hitImpactSfx, _attackIsHeavy ? 1.0f : 0.85f);
 
             // Game feel
             float stopDur = _attackIsHeavy ? _heavyHitStopDuration : _lightHitStopDuration;
@@ -302,6 +344,7 @@ namespace EchoesOfTheLost.Systems.Combat
             _isParrying = true;
             _parryTimer = _parryWindowDuration;
             _animator.SetTrigger(_animParry);
+            PlayCombatSound(_parrySfx, 0.65f);
         }
 
         /// <summary>Returns true if incoming damage was parried/blocked. Modifies DamageInfo.</summary>
@@ -310,6 +353,7 @@ namespace EchoesOfTheLost.Systems.Combat
             if (_isParrying)
             {
                 OnParrySuccess?.Invoke();
+                PlayCombatSound(_parrySfx, 1.0f);
                 info.amount = 0f;
                 // Stun attacker — handled externally
                 return true;
@@ -317,6 +361,7 @@ namespace EchoesOfTheLost.Systems.Combat
 
             if (_isBlocking)
             {
+                PlayCombatSound(_blockSfx, 0.9f);
                 info.amount *= (1f - _blockDamageReduction);
                 return true;
             }

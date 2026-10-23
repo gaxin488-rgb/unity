@@ -125,6 +125,13 @@ namespace EchoesOfTheLost.Characters.Player
 
         // ── Stamina ───────────────────────────────────────────
 
+        /// <summary>Restore stamina.</summary>
+        public void RestoreStamina(float amount)
+        {
+            if (_isDead) return;
+            _currentStamina = Mathf.Min(_currentStamina + amount, MaxStamina.FinalValue);
+        }
+
         /// <summary>Use stamina. Returns false if insufficient.</summary>
         public bool UseStamina(float amount)
         {

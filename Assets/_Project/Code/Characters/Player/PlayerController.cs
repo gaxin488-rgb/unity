@@ -62,6 +62,12 @@ namespace EchoesOfTheLost.Characters.Player
         private Vector3 _moveDirection;
         private float _currentSpeed;
 
+        public bool IsGrounded => _isGrounded;
+        public bool IsSprinting => _isSprinting;
+        public bool IsCrouching => _isCrouching;
+        public bool IsRolling => _isRolling;
+        public bool IsSwimming => _isSwimming;
+
         // ── Animator Hashes ──────────────────────────────────
         private static readonly int _animSpeed = Animator.StringToHash("Speed");
         private static readonly int _animGrounded = Animator.StringToHash("IsGrounded");

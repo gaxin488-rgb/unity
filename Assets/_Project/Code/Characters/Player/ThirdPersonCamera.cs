@@ -213,9 +213,9 @@ namespace EchoesOfTheLost.Characters.Player
         /// <summary>
         /// Immediately positions and aligns the camera in Edit Mode or Play Mode for optimal framing.
         /// </summary>
-        public void ApplyInitialFraming(Transform targetTransform, float yawDegrees = 14f, float pitchDegrees = 14f, CameraViewPreset preset = CameraViewPreset.Exploration)
+        public void ApplyInitialFraming(Transform targetTransform = null, float yawDegrees = 14f, float pitchDegrees = 14f, CameraViewPreset preset = CameraViewPreset.Exploration)
         {
-            _target = targetTransform;
+            if (targetTransform != null) _target = targetTransform;
             _yaw = yawDegrees;
             _pitch = pitchDegrees;
             SetCameraPreset(preset, instant: true);

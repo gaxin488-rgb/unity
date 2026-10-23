@@ -38,7 +38,7 @@ namespace EchoesOfTheLost.EditorTools
     {
         private const string ScenePath = "Assets/_Project/Scenes/Sandbox.unity";
         private const string StampPath = "ProjectSettings/SandboxVersion.txt";
-        private const string BuilderVersion = "v5_ui_and_camera";
+        private const string BuilderVersion = "v6_scripting_gameplay_systems";
         private const string ControllerPath = "Assets/_Project/Art/Characters/Player/PlayerAnimator.controller";
         private const string InputPath = "Assets/_Project/Settings/Input/PlayerInputActions.inputactions";
         private const string MatDir = "Assets/_Project/Art/Materials";
@@ -237,7 +237,7 @@ namespace EchoesOfTheLost.EditorTools
             var questMgr = questGO.AddComponent<QuestManager>();
             SetObjectArrayRef(questMgr, "_allQuests", new Object[] { questFirstEcho });
 
-            // ── 2. Lighting & Time/Weather ──
+            // ── 2. Lighting & Time/Weather (Day/Night Cycle, Moon & Soft Shadows) ──
             var lightGO = new GameObject("Directional Light (Sun)");
             var sunLight = lightGO.AddComponent<Light>();
             sunLight.type = LightType.Directional;
@@ -251,9 +251,17 @@ namespace EchoesOfTheLost.EditorTools
             RenderSettings.fogDensity = 0.004f;
             RenderSettings.fogColor = new Color(0.68f, 0.82f, 0.90f);
 
+            var moonGO = new GameObject("Directional Light (Moon)");
+            var moonLight = moonGO.AddComponent<Light>();
+            moonLight.type = LightType.Directional;
+            moonLight.intensity = 0.35f;
+            moonLight.color = new Color(0.65f, 0.78f, 1.0f);
+            moonLight.shadows = LightShadows.Soft;
+            moonGO.transform.rotation = Quaternion.Euler(228f, -35f, 0f);
+
             var timeGO = new GameObject("TimeSystem");
             var timeSys = timeGO.AddComponent<TimeSystem>();
-            SetObjectRef(timeSys, "_sunLight", sunLight);
+            timeSys.ConfigureLightingDefaults(sunLight, moonLight);
 
             var weatherGO = new GameObject("WeatherSystem");
             var weatherSys = weatherGO.AddComponent<WeatherSystem>();
@@ -332,7 +340,7 @@ namespace EchoesOfTheLost.EditorTools
             var combat = player.AddComponent<CombatManager>();
             SetLayerMask(combat, "_hitLayerMask", -1);
 
-            // ── 9 & 10. Main Camera, MiniMap Camera & Complete 4-Stage HUD Canvas ──
+            // ── 9. Main Camera & Orbit Follow ──
             var camGO = new GameObject("Main Camera") { tag = "MainCamera" };
             camGO.AddComponent<Camera>();
             camGO.AddComponent<AudioListener>();
@@ -340,6 +348,10 @@ namespace EchoesOfTheLost.EditorTools
             SetObjectRef(follow, "_target", player.transform);
             SetObjectRef(pc, "_cameraTransform", camGO.transform);
 
+            // ── 10. Gameplay Systems: Wayshrine, Drone, Placeholders, Triggers & First Person ──
+            GameplaySystemsBuilder.BuildAllSystems(envRoot, player, camGO.GetComponent<Camera>(), follow);
+
+            // ── 11. Complete 4-Stage HUD Canvas & Camera Presets ──
             UICanvasCameraBuilder.BuildCompleteUIAndCamera();
 
             // ── Save Scene & Version Stamp ──

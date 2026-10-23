@@ -88,20 +88,46 @@
 | `UICanvasCameraBuilder` (4-Stage UI & Camera: Set Up Canvas -> On-Screen UI Elements & 9 Sprites -> UI Animator/Clips -> 3 Camera View Presets) | ✅ Done | `Assets/_Project/Code/Editor/UICanvasCameraBuilder.cs` |
 | `EnvironmentTextureGenerator` (16 PBR Textures `Albedo + Normal`, 10 URP Materials, 5 `TerrainLayer`s & URP Pipeline Asset) | ✅ Done | `Assets/_Project/Code/Editor/EnvironmentTextureGenerator.cs` |
 | `TerrainWorldBuilder` (4-Stage Unity Terrain: Build Terrain -> Paint 5-Layer Splatmap -> Add 155 Trees & 3D Grass Details -> Edit/Smooth Terrain) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
-| `SandboxSceneBuilder` (`v5_ui_and_camera` — tự động dựng toàn bộ Vertical Slice, PBR Materials, Unity Terrain, HUD Canvas & Camera Presets) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
 | `CoreSystemsVerifier` (`EotL/QA/Run Core Systems Self-Test`) | ✅ Done | `Assets/_Project/Code/Editor/CoreSystemsVerifier.cs` |
+
+---
+
+## Phase 6 — Scripting, Prototyping, Audio, Combat & Day/Night Systems ✅
+
+| Task | Status | File |
+|------|--------|------|
+| `SolenneAetherShrine` (Pipeline A: C# Scripting, Coroutines, Multi-GameObject binding, Attunement sequence) | ✅ Done | `Assets/_Project/Code/World/SolenneAetherShrine.cs` |
+| `AetherCompanionDrone` (Pipeline A: Escort orbit, Scanning coroutines, Stabilizer gyros) | ✅ Done | `Assets/_Project/Code/World/AetherCompanionDrone.cs` |
+| `FirstPersonController` (Pipeline B: First-person camera mount, head-bob, FOV kick, viewmodel blade `[C]`) | ✅ Done | `Assets/_Project/Code/Characters/Player/FirstPersonController.cs` |
+| `PlaceholderObjectMarker` (Pipeline B: Greybox blockouts, traversal ramps, stepping pillars, cover walls) | ✅ Done | `Assets/_Project/Code/World/PlaceholderObjectMarker.cs` |
+| `GameplayTriggerVolume` (Pipeline B: SpeedBoostGate, HealingSanctuary, RuinsAmbushAlarm) | ✅ Done | `Assets/_Project/Code/World/GameplayTriggerVolume.cs` |
+| `PlayerFootstepAudio` (Pipeline B: Terrain Splatmap & Surface tag detection, walk/sprint cadence audio) | ✅ Done | `Assets/_Project/Code/Characters/Player/PlayerFootstepAudio.cs` |
+| `GameAudioGenerator` (14 procedural 16-bit PCM WAV SFX: footsteps, slashes, impacts, parry sparks) | ✅ Done | `Assets/_Project/Code/Editor/GameAudioGenerator.cs` |
+| `CombatTargetDummy` (Pipeline C: Sparring dummy, IDamageable, squash/stretch wobble reaction) | ✅ Done | `Assets/_Project/Code/World/CombatTargetDummy.cs` |
+| `CombatManager` (Pipeline C: Synchronized slash/impact/parry audio, combo timing, hitstop) | ✅ Done | `Assets/_Project/Code/Systems/CombatSystem/CombatManager.cs` |
+| `TimeSystem` & `WeatherSystem` (Pipeline D: 24h Sun & Moon rotation, soft shadows, atmospheric fog, `[F1]`-`[F4]`) | ✅ Done | `Assets/_Project/Code/World/TimeSystem.cs` |
+| `GameplaySystemsBuilder` (Automated builder linking all gameplay, audio, triggers, and lighting) | ✅ Done | `Assets/_Project/Code/Editor/GameplaySystemsBuilder.cs` |
+| `SandboxSceneBuilder` (`v6_scripting_gameplay_systems` — scene build orchestrator) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
 
 ---
 
 ## 🎮 Hướng Dẫn Điều Khiển Trong Play Mode (`Sandbox.unity`)
 
-- **Di chuyển & Hành động:** `WASD` Di chuyển | `Mouse` Xoay Camera | `Shift` Chạy nhanh | `Space` Nhảy | `Ctrl` Lộn né (Roll)
-- **Góc nhìn Camera (`ThirdPersonCamera`):** `V` Đổi 3 góc nhìn (`Exploration` / `Close Action` / `Panoramic Tactical`) | `Con lăn chuột (Scroll)` Phóng to / Thu nhỏ khoảng cách Camera
-- **Chiến đấu:** `Chuột Trái (LMB)` Đánh thường (Combo 3 đòn) | `Chuột Phải (RMB)` Đánh mạnh (Heavy Attack)
-- **Tương tác:** `E` Trò chuyện với **Elder Maren**, giải mã **Solenne Echo Crystals**, hoặc tiếp tục hội thoại
+- **Di chuyển & Hành động:** `WASD` Di chuyển | `Mouse` Xoay Camera | `Shift` Chạy nhanh (Footstep cadence tăng tốc) | `Space` Nhảy | `Ctrl` Lộn né (Roll)
+- **Góc nhìn Camera & Góc nhìn Thứ Nhất:**
+  - `C`: **Bật/Tắt Góc nhìn Thứ Nhất (First-Person View)** — ngắm trực diện với kiếm Solenne Aether Blade trên tay phải, tâm ngắm và chuyển động nhấp nhô đầu (Head-bob).
+  - `V`: **Đổi 3 góc nhìn Camera Thứ Ba** (`Exploration` / `Close Action` / `Panoramic Tactical`)
+  - `Con lăn chuột (Scroll)`: Phóng to / Thu nhỏ khoảng cách Camera Orbit
+- **Chiến đấu & Âm thanh:** `Chuột Trái (LMB)` Đánh thường (Combo 4 đòn với tiếng chém vút gió & lướt người) | `Chuột Phải (RMB)` Đánh mạnh (Heavy Attack) | Đánh vào **Combat Target Dummy** để thử nghiệm co giãn hoạt ảnh & âm thanh trúng đòn
+- **Tương tác:** `E` Kích hoạt **Solenne Aether Wayshrine** (chuỗi Coroutine năng lượng & drone quét), trò chuyện với **Elder Maren**, hoặc giải mã **Echo Crystals**
+- **Chu kỳ Thời gian & Ánh sáng Nhanh:**
+  - `F1`: Bình minh (06:30 AM)
+  - `F2`: Giữa trưa (12:00 PM)
+  - `F3`: Hoàng hôn (06:15 PM — xem bóng đổ mềm dài tuyệt đẹp)
+  - `F4`: Nửa đêm (00:00 AM — ánh trăng bạc soi thung lũng)
 - **Giao diện (UI Modals):**
-  - `Tab` hoặc `I`: Mở **Túi Đồ & Trang Bị (Inventory)** — bấm `[1]` để uống bình máu *Aether Mending Tonic (+45 HP)*
+  - `Tab` hoặc `I`: Mở **Túi Đồ & Trang Bị (Inventory)**
   - `J`: Mở **Nhật Ký Nhiệm Vụ (Quest Journal)**
-  - `K`: Mở **Bảng Nhân Vật, Kỹ Năng & Danh Vọng 3 Phe Phái (Character & Factions)**
-  - `Esc`: Mở **Menu Tạm Dừng & Điều Khiển Thế Giới (World Sandbox Controls)** — chỉnh nhanh Bình minh / Giữa trưa / Hoàng hôn / Ban đêm và đổi Thời tiết (`Clear`, `Rain`, `Thunderstorm`, `Foggy`)
+  - `K`: Mở **Bảng Nhân Vật, Kỹ Năng & Danh Vọng (Character & Factions)**
+  - `Esc`: Mở **Menu Tạm Dừng & Điều Khiển Thế Giới (World Sandbox Controls)**
 - **Lưu / Tải nhanh:** `F5` Quick Save | `F9` Quick Load
