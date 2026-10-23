@@ -468,7 +468,7 @@ namespace EchoesOfTheLost.EditorTools
             // 7. RỘNG ĐƯỜNG MÒN: TƯỜNG ĐÁ & THẢM HOA DẠI SẶC SỠ (Rustic Dry-Stone Wall & 4-Color Wildflowers along curved road)
             CreateRoadsideWallAndFlowers(
                 envRoot, matStone, matRock,
-                envMats.FlowerStem, envMats.FlowerYellow, envMats.FlowerRed, envMats.FlowerBlue, envMats.FlowerPurple,
+                matGrassTuft, envMats.FlowerStem, envMats.FlowerYellow, envMats.FlowerRed, envMats.FlowerBlue, envMats.FlowerPurple,
                 matTreeTrunk, matTreeLeaves);
         }
 
@@ -552,24 +552,25 @@ namespace EchoesOfTheLost.EditorTools
             sideRock.GetComponent<Renderer>().sharedMaterial = rockMat;
         }
 
-        private static void CreateGrassTuft(string name, Transform parent, Vector3 pos, Material tuftMat)
+        private static void CreateGrassTuft(string name, Transform parent, Vector3 pos, Material tuftMat, float scale = 1.0f)
         {
-            var root = new GameObject(name).transform;
-            root.SetParent(parent, false);
-            root.position = pos;
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
+            go.transform.localScale = Vector3.one * scale;
 
-            for (int i = 0; i < 3; i++)
+            var mf = go.AddComponent<MeshFilter>();
+            string meshPath = "Assets/_Project/Data/Terrain/Mesh_GrassDetailCluster.asset";
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+            if (mesh == null)
             {
-                var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                blade.name = $"GrassBlade_{i}";
-                blade.transform.SetParent(root, false);
-                float angle = i * 60f;
-                blade.transform.localPosition = new Vector3(Mathf.Cos(angle) * 0.18f, 0.28f, Mathf.Sin(angle) * 0.18f);
-                blade.transform.localRotation = Quaternion.Euler(10f, angle, 0f);
-                blade.transform.localScale = new Vector3(0.75f, 0.55f, 0.12f);
-                blade.GetComponent<Renderer>().sharedMaterial = tuftMat;
-                Object.DestroyImmediate(blade.GetComponent<Collider>());
+                mesh = TerrainWorldBuilder.BuildCrossedGrassMesh();
             }
+            mf.sharedMesh = mesh;
+
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = tuftMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
 
         private static void CreateBox(string name, Transform parent, Vector3 pos, Vector3 scale, Material mat)
@@ -683,7 +684,8 @@ namespace EchoesOfTheLost.EditorTools
         private static void CreateRoadsideWallAndFlowers(
             Transform parent,
             Material stoneMat, Material rockMat,
-            Material stemMat, Material flowerYellow, Material flowerRed, Material flowerBlue, Material flowerPurple,
+            Material grassTuftMat, Material stemMat,
+            Material flowerYellow, Material flowerRed, Material flowerBlue, Material flowerPurple,
             Material trunkMat, Material leafMat)
         {
             var wallGroup = new GameObject("07_Scenic_Roadside_Wall_And_Flowers").transform;
@@ -727,7 +729,7 @@ namespace EchoesOfTheLost.EditorTools
                 wallCap.transform.localScale = new Vector3(0.72f, 0.14f, stepZ * 1.04f);
                 wallCap.GetComponent<Renderer>().sharedMaterial = rockMat;
 
-                // 2. Dense foreground wildflowers hugging the stone wall (Yellow, Red, Blue, Purple)
+                // 2. Dense foreground wildflowers & tapered grass tufts hugging the stone wall
                 int flowerTuftsPerSegment = 4;
                 for (int f = 0; f < flowerTuftsPerSegment; f++)
                 {
@@ -744,6 +746,15 @@ namespace EchoesOfTheLost.EditorTools
                     else if (roll > 0.90f) flowerMat = flowerPurple;
 
                     CreateRoadsideFlowerCluster($"RoadsideFlower_{Mathf.RoundToInt(z)}_{f}", wallGroup, segPos, stemMat, flowerMat);
+                    CreateGrassTuft($"RoadsideGrass_{Mathf.RoundToInt(z)}_{f}", wallGroup, segPos + left * 0.20f, grassTuftMat, 0.92f);
+                }
+
+                // Also place natural grass tufts along the right verge
+                if (Mathf.RoundToInt(z) % 6 == 0)
+                {
+                    Vector3 rightVerge = (p0 + p1) * 0.5f - left * 3.2f;
+                    if (terrain != null) rightVerge.y = terrain.SampleHeight(rightVerge);
+                    CreateGrassTuft($"RightVergeGrass_{Mathf.RoundToInt(z)}", wallGroup, rightVerge, grassTuftMat, 1.05f);
                 }
             }
 

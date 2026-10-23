@@ -122,6 +122,7 @@
 | `TerrainWorldBuilder` (5 DetailPrototypes & phân bố mật độ tế bào Perlin trên TerrainData) | ✅ Done | `Assets/_Project/Code/Editor/TerrainWorldBuilder.cs` |
 | `CreateRoadsideWallAndFlowers` (Bờ tường đá cuội mộc mạc và dải hoa dại ôm chân tường phỏng theo *Slow Roads*) | ✅ Done | `Assets/_Project/Code/Editor/SandboxSceneBuilder.cs` |
 | 4 Prefabs Hoa Dại 3D (`PF_FlowerCluster_Yellow`, `_Red`, `_Blue`, `_Purple`) | ✅ Done | `Assets/_Project/Prefabs/Environment/` |
+| Bụi cỏ Alpha Cutout & Crossed-Quads (Tạo ngọn cỏ nhọn tự nhiên, nền trong suốt `Color.clear`, URP Alpha Clipping `_AlphaClip = 1f`, double-sided) | ✅ Done | `EnvironmentTextureGenerator.cs`, `TerrainWorldBuilder.cs`, `SandboxSceneBuilder.cs` |
 
 ---
 

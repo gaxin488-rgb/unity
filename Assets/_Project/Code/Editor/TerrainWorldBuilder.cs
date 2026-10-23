@@ -978,32 +978,81 @@ namespace EchoesOfTheLost.EditorTools
             return finalMesh;
         }
 
-        private static Mesh BuildCrossedGrassMesh()
+        public static Mesh BuildCrossedGrassMesh()
         {
-            var cubeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Mesh cubeMesh = cubeGO.GetComponent<MeshFilter>().sharedMesh;
+            var mesh = new Mesh();
+            mesh.name = "Mesh_GrassDetailCluster";
 
-            var combines = new CombineInstance[3];
-            for (int i = 0; i < 3; i++)
+            // 3 intersecting vertical Quads (Cards) at 0°, 60°, 120°
+            int quadCount = 3;
+            float width = 0.92f;
+            float height = 0.82f;
+
+            var vertices = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var uvs = new List<Vector2>();
+            var triangles = new List<int>();
+
+            for (int q = 0; q < quadCount; q++)
             {
-                float angle = i * 60f;
-                combines[i] = new CombineInstance
-                {
-                    mesh = cubeMesh,
-                    transform = Matrix4x4.TRS(
-                        new Vector3(0f, 0.25f, 0f),
-                        Quaternion.Euler(8f, angle, 0f),
-                        new Vector3(0.65f, 0.50f, 0.08f))
-                };
+                float angleDeg = q * 60f + 14f;
+                float angleRad = angleDeg * Mathf.Deg2Rad;
+                Vector3 right = new Vector3(Mathf.Cos(angleRad), 0f, Mathf.Sin(angleRad));
+                Vector3 cardNormal = new Vector3(-right.z, 0f, right.x);
+
+                int baseIdx = vertices.Count;
+
+                // Bottom vertices (pinned to ground at y = 0)
+                Vector3 bl = -right * (width * 0.46f);
+                Vector3 br = right * (width * 0.46f);
+
+                // Top vertices (flared slightly outward for natural spreading tuft silhouette)
+                Vector3 tl = -right * (width * 0.52f) + Vector3.up * height;
+                Vector3 tr = right * (width * 0.52f) + Vector3.up * height;
+
+                vertices.Add(bl);
+                vertices.Add(br);
+                vertices.Add(tl);
+                vertices.Add(tr);
+
+                // Soft upward foliage normal trick: blends horizontal card normal with upward vector
+                Vector3 softNormal = (cardNormal * 0.35f + Vector3.up * 0.85f).normalized;
+                normals.Add(softNormal);
+                normals.Add(softNormal);
+                normals.Add(softNormal);
+                normals.Add(softNormal);
+
+                uvs.Add(new Vector2(0f, 0f));
+                uvs.Add(new Vector2(1f, 0f));
+                uvs.Add(new Vector2(0f, 1f));
+                uvs.Add(new Vector2(1f, 1f));
+
+                // Front face
+                triangles.Add(baseIdx + 0);
+                triangles.Add(baseIdx + 2);
+                triangles.Add(baseIdx + 1);
+
+                triangles.Add(baseIdx + 2);
+                triangles.Add(baseIdx + 3);
+                triangles.Add(baseIdx + 1);
+
+                // Back face
+                triangles.Add(baseIdx + 0);
+                triangles.Add(baseIdx + 1);
+                triangles.Add(baseIdx + 2);
+
+                triangles.Add(baseIdx + 2);
+                triangles.Add(baseIdx + 1);
+                triangles.Add(baseIdx + 3);
             }
 
-            var finalMesh = new Mesh();
-            finalMesh.CombineMeshes(combines, mergeSubMeshes: true, useMatrices: true);
-            finalMesh.RecalculateBounds();
-            finalMesh.RecalculateNormals();
+            mesh.SetVertices(vertices);
+            mesh.SetNormals(normals);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
 
-            Object.DestroyImmediate(cubeGO);
-            return finalMesh;
+            return mesh;
         }
 
         // ── Terrain Math & Spline Helpers ─────────────────────

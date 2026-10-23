@@ -72,8 +72,10 @@ namespace EchoesOfTheLost.EditorTools
             EnsureTexturePair("Tex_Mountain", forceRegenerateTextures, SampleMountain, normalStrength: 4.0f);
             // 7. TreeBark (Vỏ thân cây)
             EnsureTexturePair("Tex_TreeBark", forceRegenerateTextures, SampleTreeBark, normalStrength: 3.5f);
-            // 8. Foliage (Tán lá cây & Bụi cỏ)
+            // 8. Foliage (Tán lá cây)
             EnsureTexturePair("Tex_Foliage", forceRegenerateTextures, SampleFoliage, normalStrength: 2.4f);
+            // 9. GrassBlade (Bụi cỏ với ngọn nhọn và nền Alpha trong suốt)
+            EnsureGrassBladeTextures(forceRegenerateTextures);
 
             AssetDatabase.Refresh();
 
@@ -88,6 +90,8 @@ namespace EchoesOfTheLost.EditorTools
                 ConfigureTextureImporter($"{TexDir}/{n}_Albedo.png", isNormal: false);
                 ConfigureTextureImporter($"{TexDir}/{n}_Normal.png", isNormal: true);
             }
+            ConfigureTextureImporter($"{TexDir}/Tex_GrassBlade_Albedo.png", isNormal: false, isAlphaCutout: true);
+            ConfigureTextureImporter($"{TexDir}/Tex_GrassBlade_Normal.png", isNormal: true, isAlphaCutout: true);
 
             // Build URP Materials
             var set = new EnvironmentMaterialSet
@@ -95,8 +99,9 @@ namespace EchoesOfTheLost.EditorTools
                 Grass = CreateOrUpdatePBRMaterial("Mat_Grass.mat", "Tex_Grass",
                     Color.white, smoothness: 0.16f, bumpScale: 1.15f, tiling: new Vector2(24f, 24f)),
 
-                GrassTuft = CreateOrUpdatePBRMaterial("Mat_GrassTuft.mat", "Tex_Foliage",
-                    new Color(0.52f, 0.85f, 0.34f), smoothness: 0.14f, bumpScale: 0.9f, tiling: new Vector2(2f, 2f)),
+                // Bụi cỏ Alpha Cutout: 2 mặt (Cull Off), ngọn cỏ nhọn, nền trong suốt
+                GrassTuft = CreateOrUpdateCutoutMaterial("Mat_GrassTuft.mat", "Tex_GrassBlade",
+                    Color.white, cutoff: 0.35f),
 
                 Earth = CreateOrUpdatePBRMaterial("Mat_Earth.mat", "Tex_Earth",
                     Color.white, smoothness: 0.12f, bumpScale: 1.3f, tiling: new Vector2(5f, 2f)),
@@ -443,7 +448,120 @@ namespace EchoesOfTheLost.EditorTools
             File.WriteAllBytes(assetPath, bytes);
         }
 
-        private static void ConfigureTextureImporter(string assetPath, bool isNormal)
+        private static void WritePngCustom(string assetPath, Color[] pixels, int w, int h)
+        {
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+            tex.SetPixels(pixels);
+            tex.Apply();
+            byte[] bytes = tex.EncodeToPNG();
+            Object.DestroyImmediate(tex);
+            File.WriteAllBytes(assetPath, bytes);
+        }
+
+        private static void EnsureGrassBladeTextures(bool force)
+        {
+            string albedoPath = $"{TexDir}/Tex_GrassBlade_Albedo.png";
+            string normalPath = $"{TexDir}/Tex_GrassBlade_Normal.png";
+
+            if (!force && File.Exists(albedoPath) && File.Exists(normalPath)) return;
+
+            int w = 128;
+            int h = 128;
+            var pixels = new Color[w * h];
+            var heights = new float[w * h];
+
+            // 1. Xóa toàn bộ nền thành trong suốt (Color.clear)
+            for (int i = 0; i < pixels.Length; i++)
+            {
+                pixels[i] = Color.clear;
+                heights[i] = 0f;
+            }
+
+            // 2. Vẽ 36 cọng cỏ mọc từ đáy (y = 0) lên trên, dày ở gốc và nhọn dần ở ngọn
+            var rng = new System.Random(42);
+            int bladeCount = 36;
+
+            for (int b = 0; b < bladeCount; b++)
+            {
+                int startX = rng.Next(6, w - 6);
+                int bladeHeight = rng.Next((int)(h * 0.45f), (int)(h * 0.96f));
+                float lean = (float)(rng.NextDouble() * 2.0 - 1.0) * (w * 0.16f);
+                float curve = (float)(rng.NextDouble() * 2.0 - 1.0) * 0.40f;
+
+                Color rootColor = new Color(0.10f, 0.32f, 0.06f, 1f);
+                Color midColor = new Color(0.28f, 0.65f, 0.18f, 1f);
+                Color tipColor = new Color(0.55f, 0.82f, 0.28f, 1f);
+
+                for (int y = 0; y < bladeHeight; y++)
+                {
+                    float t = (float)y / bladeHeight;
+                    float currentX = startX + lean * t + curve * Mathf.Sin(t * Mathf.PI) * (w * 0.09f);
+                    int centerX = Mathf.RoundToInt(currentX);
+
+                    // Cọng cỏ dày ở gốc (3-4 pixel), nhọn dần ở ngọn (1 pixel)
+                    int halfW = Mathf.Max(0, Mathf.RoundToInt((1f - t) * 3.4f));
+
+                    // Màu chuyển từ xanh đậm ở gốc sang xanh sáng tươi ở ngọn
+                    Color bladeColor = t < 0.5f
+                        ? Color.Lerp(rootColor, midColor, t * 2f)
+                        : Color.Lerp(midColor, tipColor, (t - 0.5f) * 2f);
+
+                    for (int dx = -halfW; dx <= halfW; dx++)
+                    {
+                        int px = Mathf.Clamp(centerX + dx, 0, w - 1);
+                        int idx = y * w + px;
+
+                        float distNorm = halfW > 0 ? Mathf.Abs((float)dx / halfW) : 0f;
+                        float alpha = Mathf.Clamp01(1.25f - distNorm * 0.45f);
+
+                        if (pixels[idx].a > 0.01f)
+                        {
+                            pixels[idx] = Color.Lerp(pixels[idx], bladeColor, alpha);
+                            pixels[idx].a = Mathf.Max(pixels[idx].a, alpha);
+                        }
+                        else
+                        {
+                            pixels[idx] = new Color(bladeColor.r, bladeColor.g, bladeColor.b, alpha);
+                        }
+                        heights[idx] = Mathf.Max(heights[idx], (1f - distNorm * 0.5f) * (1f - t * 0.25f));
+                    }
+                }
+            }
+
+            WritePngCustom(albedoPath, pixels, w, h);
+
+            // 3. Tính toán Normal Map để các cọng cỏ bắt sáng và nổi khối 3D mềm mại
+            var normals = new Color[w * h];
+            float normalStrength = 2.6f;
+            for (int y = 0; y < h; y++)
+            {
+                int yUp = Mathf.Min(h - 1, y + 1);
+                int yDown = Mathf.Max(0, y - 1);
+                for (int x = 0; x < w; x++)
+                {
+                    int xRight = Mathf.Min(w - 1, x + 1);
+                    int xLeft = Mathf.Max(0, x - 1);
+
+                    float hL = heights[y * w + xLeft];
+                    float hR = heights[y * w + xRight];
+                    float hD = heights[yDown * w + x];
+                    float hU = heights[yUp * w + x];
+
+                    float dx = (hL - hR) * normalStrength;
+                    float dy = (hD - hU) * normalStrength;
+                    Vector3 n = new Vector3(dx, dy, 1f).normalized;
+
+                    normals[y * w + x] = new Color(
+                        n.x * 0.5f + 0.5f,
+                        n.y * 0.5f + 0.5f,
+                        n.z * 0.5f + 0.5f,
+                        pixels[y * w + x].a);
+                }
+            }
+            WritePngCustom(normalPath, normals, w, h);
+        }
+
+        private static void ConfigureTextureImporter(string assetPath, bool isNormal, bool isAlphaCutout = false)
         {
             var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
             if (importer == null) return;
@@ -451,9 +569,17 @@ namespace EchoesOfTheLost.EditorTools
             bool dirty = false;
             var targetType = isNormal ? TextureImporterType.NormalMap : TextureImporterType.Default;
             if (importer.textureType != targetType) { importer.textureType = targetType; dirty = true; }
-            if (importer.wrapMode != TextureWrapMode.Repeat) { importer.wrapMode = TextureWrapMode.Repeat; dirty = true; }
-            if (importer.filterMode != FilterMode.Trilinear) { importer.filterMode = FilterMode.Trilinear; dirty = true; }
+            var wrap = isAlphaCutout ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
+            if (importer.wrapMode != wrap) { importer.wrapMode = wrap; dirty = true; }
+            if (importer.filterMode != FilterMode.Bilinear && isAlphaCutout) { importer.filterMode = FilterMode.Bilinear; dirty = true; }
+            else if (importer.filterMode != FilterMode.Trilinear && !isAlphaCutout) { importer.filterMode = FilterMode.Trilinear; dirty = true; }
             if (importer.anisoLevel != 8) { importer.anisoLevel = 8; dirty = true; }
+
+            if (isAlphaCutout && !isNormal)
+            {
+                if (importer.alphaSource != TextureImporterAlphaSource.FromInput) { importer.alphaSource = TextureImporterAlphaSource.FromInput; dirty = true; }
+                if (!importer.alphaIsTransparency) { importer.alphaIsTransparency = true; dirty = true; }
+            }
 
             if (dirty) importer.SaveAndReimport();
         }
@@ -505,6 +631,71 @@ namespace EchoesOfTheLost.EditorTools
 
             if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", smoothness);
             if (mat.HasProperty("_Metallic")) mat.SetFloat("_Metallic", 0.0f);
+            mat.enableInstancing = true;
+
+            EditorUtility.SetDirty(mat);
+            return mat;
+        }
+
+        private static Material CreateOrUpdateCutoutMaterial(
+            string matFileName, string texBaseName,
+            Color tintColor, float cutoff = 0.35f)
+        {
+            string matPath = $"{MatDir}/{matFileName}";
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
+
+            if (mat == null)
+            {
+                mat = new Material(shader);
+                AssetDatabase.CreateAsset(mat, matPath);
+            }
+            else if (mat.shader != shader)
+            {
+                mat.shader = shader;
+            }
+
+            var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexDir}/{texBaseName}_Albedo.png");
+            var normal = AssetDatabase.LoadAssetAtPath<Texture2D>($"{TexDir}/{texBaseName}_Normal.png");
+
+            if (mat.HasProperty("_BaseColor")) mat.SetColor("_BaseColor", tintColor);
+            if (mat.HasProperty("_Color")) mat.SetColor("_Color", tintColor);
+
+            if (albedo != null)
+            {
+                if (mat.HasProperty("_BaseMap"))
+                {
+                    mat.SetTexture("_BaseMap", albedo);
+                    mat.SetTextureScale("_BaseMap", Vector2.one);
+                }
+                mat.mainTexture = albedo;
+                mat.mainTextureScale = Vector2.one;
+            }
+
+            if (normal != null && mat.HasProperty("_BumpMap"))
+            {
+                mat.EnableKeyword("_NORMALMAP");
+                mat.SetTexture("_BumpMap", normal);
+                mat.SetTextureScale("_BumpMap", Vector2.one);
+                if (mat.HasProperty("_BumpScale")) mat.SetFloat("_BumpScale", 0.85f);
+            }
+
+            // Cấu hình Alpha Cutout (Alpha Clipping) & hiển thị cả 2 mặt (Cull Off)
+            if (mat.HasProperty("_AlphaClip")) mat.SetFloat("_AlphaClip", 1f);
+            if (mat.HasProperty("_Cutoff")) mat.SetFloat("_Cutoff", cutoff);
+            if (mat.HasProperty("_Cull")) mat.SetInt("_Cull", (int)UnityEngine.Rendering.CullMode.Off);
+            if (mat.HasProperty("_Surface")) mat.SetFloat("_Surface", 0f); // Opaque with alpha test
+            if (mat.HasProperty("_Smoothness")) mat.SetFloat("_Smoothness", 0.15f);
+
+            // Standard Shader compatibility flags
+            mat.SetFloat("_Mode", 1f); // 1 = Cutout
+            mat.SetInt("_SrcBlend", (int)UnityEngine.Rendering.BlendMode.One);
+            mat.SetInt("_DstBlend", (int)UnityEngine.Rendering.BlendMode.Zero);
+            mat.SetInt("_ZWrite", 1);
+            mat.EnableKeyword("_ALPHATEST_ON");
+            mat.DisableKeyword("_ALPHABLEND_ON");
+            mat.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            mat.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
             mat.enableInstancing = true;
 
             EditorUtility.SetDirty(mat);
