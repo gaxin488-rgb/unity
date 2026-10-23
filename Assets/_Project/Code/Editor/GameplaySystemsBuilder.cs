@@ -315,7 +315,7 @@ namespace EchoesOfTheLost.EditorTools
             wall.GetComponent<Renderer>().sharedMaterial = stoneMat;
             var wallMarker = wall.AddComponent<PlaceholderObjectMarker>();
             wallMarker.ConfigurePlaceholder("COVER_WALL_01", PlaceholderArchetype.TacticalCoverWall, wall.transform.localScale, "Stone", Color.blue);
-            wall.SetActive(false); // [Tập trung map] Tạm ẩn chướng ngại vật combat để tầm nhìn quang đãng
+            wall.SetActive(true);
 
             // 4. Wooden Supply Crates (Loot & obstacle testing)
             var crateCluster = new GameObject("Blockout_SupplyCrates").transform;
@@ -377,7 +377,7 @@ namespace EchoesOfTheLost.EditorTools
 
             var dummyMarker = dummyGO.AddComponent<PlaceholderObjectMarker>();
             dummyMarker.ConfigurePlaceholder("TARGET_DUMMY_01", PlaceholderArchetype.CombatTargetDummy, new Vector3(1.2f, 2.1f, 1.2f), "Wood", Color.red);
-            dummyGO.SetActive(false); // [Tập trung map] Tạm ẩn bia tập combat để quang đãng map
+            dummyGO.SetActive(true);
         }
 
         // ── 3. Gameplay Trigger Volumes ─────────────────────────────────────
@@ -556,7 +556,7 @@ namespace EchoesOfTheLost.EditorTools
             var bodyModel = modelTransform != null ? modelTransform.gameObject : null;
             if (bodyModel != null)
             {
-                bodyModel.SetActive(false); // [Tập trung map] Tạm ẩn model nhân vật
+                bodyModel.SetActive(true);
             }
 
             if (!player.TryGetComponent<FirstPersonController>(out var fpc))
@@ -564,8 +564,7 @@ namespace EchoesOfTheLost.EditorTools
                 fpc = player.AddComponent<FirstPersonController>();
             }
 
-            // Truyền null cho bodyModel và fpViewModel để khi chuyển đổi camera không bị hiện lại
-            fpc.ConfigureReferences(eyeMount, mainCam, tpCam, null, null);
+            fpc.ConfigureReferences(eyeMount, mainCam, tpCam, bodyModel, fpViewModel);
         }
 
         private static Material CreateOrLoadMaterial(string fileName, Color baseColor, Color? emission = null)

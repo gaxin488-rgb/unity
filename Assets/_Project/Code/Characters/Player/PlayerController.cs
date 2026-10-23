@@ -136,18 +136,23 @@ namespace EchoesOfTheLost.Characters.Player
 
         private void MoveCharacter()
         {
-            if (_moveInput.magnitude < 0.1f)
+            if (Core.InputManager.Instance != null)
+                _moveInput = Core.InputManager.Instance.MoveInput;
+
+            if (_moveInput.sqrMagnitude < 0.01f)
             {
+                _currentSpeed = 0f;
                 _rb.linearVelocity = new Vector3(0f, _rb.linearVelocity.y, 0f);
                 return;
             }
 
-            // Camera-relative movement direction
+            if (_cameraTransform == null && Camera.main != null)
+                _cameraTransform = Camera.main.transform;
+
             Vector3 camForward = Vector3.ProjectOnPlane(_cameraTransform.forward, Vector3.up).normalized;
             Vector3 camRight = Vector3.ProjectOnPlane(_cameraTransform.right, Vector3.up).normalized;
             _moveDirection = (camForward * _moveInput.y + camRight * _moveInput.x).normalized;
 
-            // Determine target speed
             float targetSpeed = _isCrouching ? _crouchSpeed
                               : _isSwimming ? _swimSpeed
                               : _isSprinting && _stats.CurrentStamina > 0f ? _runSpeed
@@ -155,13 +160,14 @@ namespace EchoesOfTheLost.Characters.Player
 
             _currentSpeed = Mathf.Lerp(_currentSpeed, targetSpeed, _acceleration * Time.fixedDeltaTime);
 
-            // Apply movement
             Vector3 velocity = _moveDirection * _currentSpeed;
             velocity.y = _rb.linearVelocity.y;
             _rb.linearVelocity = velocity;
 
-            // Rotate to face movement direction
-            if (_moveDirection != Vector3.zero)
+            // Only rotate character body towards movement direction when in Third-Person mode!
+            // In First-Person mode, FirstPersonController owns yaw rotation so backing up (S) never spins the camera.
+            bool isFirstPerson = TryGetComponent<FirstPersonController>(out var fp) && fp.IsFirstPersonActive;
+            if (!isFirstPerson && _moveDirection.sqrMagnitude > 0.001f)
             {
                 Quaternion targetRot = Quaternion.LookRotation(_moveDirection);
                 transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, _rotationSpeed * Time.fixedDeltaTime);

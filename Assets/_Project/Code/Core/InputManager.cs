@@ -1,13 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// ============================================================
-//  InputManager — Wrapper for Unity New Input System
-//  Attach to: _Boot scene persistent GameObject
-//  Assign:    PlayerInputActions.inputactions to _inputAsset
-//  Note: actions are looked up by name from the asset, so no
-//        generated wrapper class is required.
-// ============================================================
 namespace EchoesOfTheLost.Core
 {
     [DefaultExecutionOrder(-100)]
@@ -16,7 +9,6 @@ namespace EchoesOfTheLost.Core
         [Header("Input Asset")]
         [SerializeField] private InputActionAsset _inputAsset;
 
-        // ─── Events ──────────────────────────────────────────
         public event System.Action<Vector2> OnMoveInput;
         public event System.Action<Vector2> OnLookInput;
         public event System.Action OnJumpPressed;
@@ -32,13 +24,11 @@ namespace EchoesOfTheLost.Core
         public event System.Action OnPausePressed;
         public event System.Action OnCrouchPressed;
 
-        // ─── Public Accessors (current frame state) ─────────
         public Vector2 MoveInput { get; private set; }
         public Vector2 LookInput { get; private set; }
         public bool IsSprintHeld { get; private set; }
         public bool IsBlockHeld { get; private set; }
 
-        // ─── Private ─────────────────────────────────────────
         private InputActionAsset _runtimeAsset;
         private InputActionMap _player;
         private InputAction _move, _look, _jump, _sprint, _roll, _crouch, _interact;
@@ -59,12 +49,11 @@ namespace EchoesOfTheLost.Core
 
             if (_inputAsset == null)
             {
-                Debug.LogError("[InputManager] Input asset is not assigned. Assign PlayerInputActions.inputactions in the inspector.", this);
+                Debug.LogError("[InputManager] Input asset is not assigned.", this);
                 enabled = false;
                 return;
             }
 
-            // Per-instance copy so edits/rebinds never touch the project asset.
             _runtimeAsset = Instantiate(_inputAsset);
             _player = _runtimeAsset.FindActionMap("Player", throwIfNotFound: true);
 
@@ -98,13 +87,31 @@ namespace EchoesOfTheLost.Core
             UnbindActions();
         }
 
+        private void Update()
+        {
+            if (_player == null || !_player.enabled)
+            {
+                MoveInput = Vector2.zero;
+                LookInput = Vector2.zero;
+                return;
+            }
+
+            // Poll Move & Look directly every frame for zero-lag, drift-free mouse & WASD response
+            MoveInput = _move != null ? _move.ReadValue<Vector2>() : Vector2.zero;
+
+            Vector2 rawLook = _look != null ? _look.ReadValue<Vector2>() : Vector2.zero;
+            if (rawLook.sqrMagnitude < 0.0001f && Mouse.current != null)
+            {
+                rawLook = Mouse.current.delta.ReadValue();
+            }
+            LookInput = rawLook;
+        }
+
         protected override void OnDestroy()
         {
             if (_runtimeAsset != null) Destroy(_runtimeAsset);
             base.OnDestroy();
         }
-
-        // ─── Binding ─────────────────────────────────────────
 
         private void BindActions()
         {
@@ -156,8 +163,6 @@ namespace EchoesOfTheLost.Core
             _pause.performed -= OnPausePerformed;
         }
 
-        // ─── Handlers ────────────────────────────────────────
-
         private void OnMovePerformed(InputAction.CallbackContext ctx) { MoveInput = ctx.ReadValue<Vector2>(); OnMoveInput?.Invoke(MoveInput); }
         private void OnMoveCanceled(InputAction.CallbackContext ctx) { MoveInput = Vector2.zero; OnMoveInput?.Invoke(Vector2.zero); }
         private void OnLookPerformed(InputAction.CallbackContext ctx) { LookInput = ctx.ReadValue<Vector2>(); OnLookInput?.Invoke(LookInput); }
@@ -180,12 +185,7 @@ namespace EchoesOfTheLost.Core
         private void OnJournalPerformed(InputAction.CallbackContext ctx) => OnJournalPressed?.Invoke();
         private void OnPausePerformed(InputAction.CallbackContext ctx) => OnPausePressed?.Invoke();
 
-        // ─── Public Control ──────────────────────────────────
-
-        /// <summary>Disable player input (e.g., during cutscenes).</summary>
         public void DisablePlayerInput() => _player?.Disable();
-
-        /// <summary>Re-enable player input.</summary>
         public void EnablePlayerInput() => _player?.Enable();
     }
 }

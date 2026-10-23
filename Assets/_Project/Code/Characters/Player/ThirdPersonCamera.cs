@@ -1,14 +1,7 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.EventSystems;
 
-// ============================================================
-//  ThirdPersonCamera — Action-RPG Orbit Camera for Echoes of the Lost
-//  Features:
-//    - 3 Camera View Presets ([V] to cycle: Exploration / Close Action / Panoramic Tactical)
-//    - Mouse Scroll-Wheel Zoom (2.5m .. 12m)
-//    - Over-the-Shoulder Pivot Offset & Smooth Damping
-//    - SphereCast Obstacle & Terrain Collision Avoidance
-// ============================================================
 namespace EchoesOfTheLost.Characters.Player
 {
     public enum CameraViewPreset
@@ -27,28 +20,34 @@ namespace EchoesOfTheLost.Characters.Player
 
         [Header("Orbit & Zoom")]
         [SerializeField] private float _distance = 5.8f;
-        [SerializeField] private float _minDistance = 2.4f;
+        [SerializeField] private float _minDistance = 2.0f;
         [SerializeField] private float _maxDistance = 12.0f;
-        [SerializeField] private float _zoomSpeed = 0.8f;
-        [SerializeField] private float _minPitch = -22f;
-        [SerializeField] private float _maxPitch = 68f;
-        [SerializeField] private float _sensitivity = 0.18f;
-        [SerializeField] private float _followSmoothing = 14f;
+        [SerializeField] private float _zoomSpeed = 0.85f;
+        [SerializeField] private float _minPitch = -25f;
+        [SerializeField] private float _maxPitch = 72f;
+        [SerializeField] private float _sensitivity = 0.16f;
+        [SerializeField] private float _rotationSmoothTime = 0.035f;
+        [SerializeField] private float _followSmoothing = 18f;
 
         [Header("Field of View")]
         [SerializeField] private float _targetFOV = 58f;
         [SerializeField] private float _fovSmoothing = 8f;
 
         [Header("Collision Avoidance")]
-        [SerializeField] private float _collisionRadius = 0.28f;
-        [SerializeField] private float _minCollisionDistance = 0.9f;
+        [SerializeField] private float _collisionRadius = 0.25f;
+        [SerializeField] private float _minCollisionDistance = 0.8f;
         [SerializeField] private LayerMask _collisionMask = ~0;
 
         [Header("Cursor")]
         [SerializeField] private bool _lockCursor = true;
 
+        private float _targetYaw = 14f;
+        private float _targetPitch = 14f;
         private float _yaw = 14f;
         private float _pitch = 14f;
+        private float _yawVel;
+        private float _pitchVel;
+
         private float _currentDistance = 5.8f;
         private Vector3 _smoothedPivot;
         private Camera _cam;
@@ -80,43 +79,100 @@ namespace EchoesOfTheLost.Characters.Player
 
             if (_lockCursor)
             {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
+                LockCursorForGameplay();
             }
+        }
+
+        public void SetAngles(float yaw, float pitch)
+        {
+            _targetYaw = _yaw = yaw;
+            _targetPitch = _pitch = Mathf.Clamp(pitch, _minPitch, _maxPitch);
+            _yawVel = 0f;
+            _pitchVel = 0f;
+        }
+
+        private bool IsModalWindowBlocking()
+        {
+            return Core.ServiceLocator.TryGet<UI.UIManager>(out var ui) && ui != null && ui.IsWindowOpen;
+        }
+
+        private void LockCursorForGameplay()
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         private void LateUpdate()
         {
             if (_target == null) return;
 
-            HandlePresetAndZoomInput();
+            bool uiOpen = IsModalWindowBlocking();
 
-            var input = Core.InputManager.Instance;
-            if (input != null && Cursor.lockState == CursorLockMode.Locked)
+            // Re-lock cursor when clicking inside the game view during active gameplay
+            if (!uiOpen && _lockCursor && Cursor.lockState != CursorLockMode.Locked)
             {
-                Vector2 look = input.LookInput;
-                _yaw += look.x * _sensitivity;
-                _pitch = Mathf.Clamp(_pitch - look.y * _sensitivity, _minPitch, _maxPitch);
+                if (Mouse.current != null && (Mouse.current.leftButton.wasPressedThisFrame || Mouse.current.rightButton.wasPressedThisFrame))
+                {
+                    if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
+                    {
+                        LockCursorForGameplay();
+                    }
+                }
             }
 
+            if (!uiOpen)
+            {
+                HandlePresetAndZoomInput();
+
+                // Allow smooth orbit when cursor is locked OR while holding Right Mouse Button
+                bool canLook = Cursor.lockState == CursorLockMode.Locked ||
+                               (Mouse.current != null && Mouse.current.rightButton.isPressed);
+
+                if (canLook)
+                {
+                    Vector2 look = Core.InputManager.Instance != null
+                        ? Core.InputManager.Instance.LookInput
+                        : (Mouse.current != null ? Mouse.current.delta.ReadValue() : Vector2.zero);
+
+                    _targetYaw += look.x * _sensitivity;
+                    _targetPitch = Mathf.Clamp(_targetPitch - look.y * _sensitivity, _minPitch, _maxPitch);
+                }
+            }
+
+            // Smooth rotational damping for silky mouse look
+            _yaw = Mathf.SmoothDampAngle(_yaw, _targetYaw, ref _yawVel, _rotationSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+            _pitch = Mathf.SmoothDampAngle(_pitch, _targetPitch, ref _pitchVel, _rotationSmoothTime, Mathf.Infinity, Time.unscaledDeltaTime);
+
             Vector3 targetPivot = GetWorldPivot();
-            float smoothFactor = 1f - Mathf.Exp(-_followSmoothing * Time.unscaledDeltaTime);
+            float smoothFactor = 1f - Mathf.Exp(-_followSmoothing * Time.deltaTime);
             _smoothedPivot = Vector3.Lerp(_smoothedPivot, targetPivot, smoothFactor);
 
             Quaternion rotation = Quaternion.Euler(_pitch, _yaw, 0f);
             Vector3 desiredDir = -(rotation * Vector3.forward);
 
-            // Collision check so camera never clips inside terrain or ruin walls
+            // Collision check (ignoring player & triggers)
             float desiredDist = _distance;
-            if (Physics.SphereCast(_smoothedPivot, _collisionRadius, desiredDir, out RaycastHit hit, _distance, _collisionMask, QueryTriggerInteraction.Ignore))
+            RaycastHit[] hits = Physics.SphereCastAll(_smoothedPivot, _collisionRadius, desiredDir, _distance, _collisionMask, QueryTriggerInteraction.Ignore);
+            float closestHit = _distance;
+            for (int i = 0; i < hits.Length; i++)
             {
-                if (!hit.transform.IsChildOf(_target))
-                {
-                    desiredDist = Mathf.Max(_minCollisionDistance, hit.distance - 0.15f);
-                }
+                Transform ht = hits[i].transform;
+                if (ht == _target || ht.IsChildOf(_target)) continue;
+                if (hits[i].distance < closestHit)
+                    closestHit = hits[i].distance;
             }
 
-            _currentDistance = Mathf.Lerp(_currentDistance, desiredDist, smoothFactor);
+            if (closestHit < _distance)
+            {
+                desiredDist = Mathf.Max(_minCollisionDistance, closestHit - 0.15f);
+                // Snap closer quickly when obstructed, ease out smoothly when clear
+                _currentDistance = Mathf.Lerp(_currentDistance, desiredDist, 1f - Mathf.Exp(-28f * Time.unscaledDeltaTime));
+            }
+            else
+            {
+                _currentDistance = Mathf.Lerp(_currentDistance, desiredDist, 1f - Mathf.Exp(-10f * Time.unscaledDeltaTime));
+            }
+
             transform.position = _smoothedPivot + desiredDir * _currentDistance;
             transform.rotation = rotation;
 
@@ -135,12 +191,14 @@ namespace EchoesOfTheLost.Characters.Player
             }
 
             var mouse = Mouse.current;
-            if (mouse != null && Cursor.lockState == CursorLockMode.Locked)
+            if (mouse != null)
             {
                 float scrollY = mouse.scroll.ReadValue().y;
                 if (Mathf.Abs(scrollY) > 0.01f)
                 {
-                    _distance = Mathf.Clamp(_distance - Mathf.Sign(scrollY) * _zoomSpeed, _minDistance, _maxDistance);
+                    // Normalize scroll value across platforms (Windows returns 120 per notch)
+                    float notches = Mathf.Abs(scrollY) > 10f ? scrollY / 120f : Mathf.Sign(scrollY);
+                    _distance = Mathf.Clamp(_distance - notches * _zoomSpeed, _minDistance, _maxDistance);
                 }
             }
         }
@@ -159,7 +217,7 @@ namespace EchoesOfTheLost.Characters.Player
                     CameraViewPreset.PanoramicTactical => "Panoramic Tactical View (FOV 64° | 9.5m)",
                     _ => _currentPreset.ToString()
                 };
-                UI.HUDController.Instance.ShowToast($"Camera View [V]: {label}", 2.6f);
+                UI.HUDController.Instance.ShowToast($"Camera View [V]: {label}", 2.2f);
             }
         }
 
@@ -177,21 +235,21 @@ namespace EchoesOfTheLost.Characters.Player
                     _pivotOffset = new Vector3(0.35f, 1.75f, 0f);
                     _distance = 5.8f;
                     _targetFOV = 58f;
-                    if (instant) _pitch = 14f;
+                    if (instant) _targetPitch = _pitch = 14f;
                     break;
 
                 case CameraViewPreset.CloseAction:
-                    _pivotOffset = new Vector3(0.55f, 1.60f, 0f);
+                    _pivotOffset = new Vector3(0.50f, 1.62f, 0f);
                     _distance = 3.6f;
                     _targetFOV = 52f;
-                    if (instant) _pitch = 10f;
+                    if (instant) _targetPitch = _pitch = 10f;
                     break;
 
                 case CameraViewPreset.PanoramicTactical:
                     _pivotOffset = new Vector3(0.0f, 2.10f, 0f);
                     _distance = 9.5f;
                     _targetFOV = 64f;
-                    if (instant) _pitch = 23f;
+                    if (instant) _targetPitch = _pitch = 22f;
                     break;
             }
 
@@ -210,14 +268,11 @@ namespace EchoesOfTheLost.Characters.Player
             return _target.position + new Vector3(0f, _pivotOffset.y, 0f) + yawRot * new Vector3(_pivotOffset.x, 0f, _pivotOffset.z);
         }
 
-        /// <summary>
-        /// Immediately positions and aligns the camera in Edit Mode or Play Mode for optimal framing.
-        /// </summary>
         public void ApplyInitialFraming(Transform targetTransform = null, float yawDegrees = 14f, float pitchDegrees = 14f, CameraViewPreset preset = CameraViewPreset.Exploration)
         {
             if (targetTransform != null) _target = targetTransform;
-            _yaw = yawDegrees;
-            _pitch = pitchDegrees;
+            _targetYaw = _yaw = yawDegrees;
+            _targetPitch = _pitch = pitchDegrees;
             SetCameraPreset(preset, instant: true);
 
             _smoothedPivot = GetWorldPivot();

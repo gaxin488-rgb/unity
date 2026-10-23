@@ -1,16 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-// ============================================================================
-//  PIPELINE B — STAGE 1: ADD FIRST PERSON CONTROLLER
-//  Assets/_Project/Code/Characters/Player/FirstPersonController.cs
-//
-//  Provides a complete First-Person perspective controller on Kael (Player):
-//    - Eye-level camera mount (FirstPerson_EyeMount) with pitch clamp [-80°, +80°]
-//    - First-Person viewmodel (FP_ViewModel_AetherBlade) in lower-right view
-//    - WASD movement, Sprint FOV kick, Jump, and realistic Head-Bob wave
-//    - Seamless toggle between First-Person [C] and Third-Person [V]
-// ============================================================================
 namespace EchoesOfTheLost.Characters.Player
 {
     [ExecuteAlways]
@@ -18,24 +8,15 @@ namespace EchoesOfTheLost.Characters.Player
     public class FirstPersonController : MonoBehaviour
     {
         [Header("First-Person Camera & Viewmodel References")]
-        [Tooltip("Eye-level transform where the Main Camera docks in First-Person mode.")]
         [SerializeField] private Transform _eyeMountTransform;
-
-        [Tooltip("Reference to the scene Main Camera.")]
         [SerializeField] private Camera _mainCamera;
-
-        [Tooltip("Reference to the ThirdPersonCamera component so both modes coordinate cleanly.")]
         [SerializeField] private ThirdPersonCamera _thirdPersonCamera;
-
-        [Tooltip("Third-person character body mesh GameObject (hidden while in First-Person view).")]
         [SerializeField] private GameObject _thirdPersonBodyModel;
-
-        [Tooltip("First-person right-hand Solenne Aether Blade & Gauntlet viewmodel GameObject.")]
         [SerializeField] private GameObject _firstPersonViewModel;
 
         [Header("First-Person Look & Movement Settings")]
         [SerializeField] private bool _isFirstPersonActive;
-        [SerializeField] [Range(0.05f, 1.0f)] private float _lookSensitivity = 0.18f;
+        [SerializeField] [Range(0.05f, 1.0f)] private float _lookSensitivity = 0.16f;
         [SerializeField] [Range(-89f, -30f)] private float _minPitchDegrees = -80f;
         [SerializeField] [Range(30f, 89f)] private float _maxPitchDegrees = 80f;
         [SerializeField] [Range(55f, 85f)] private float _baseFirstPersonFov = 64f;
@@ -43,7 +24,7 @@ namespace EchoesOfTheLost.Characters.Player
 
         [Header("Procedural Head-Bob & Weapon Sway")]
         [SerializeField] [Range(4f, 18f)] private float _headBobFrequency = 10.5f;
-        [SerializeField] [Range(0.01f, 0.12f)] private float _headBobAmplitude = 0.045f;
+        [SerializeField] [Range(0.01f, 0.12f)] private float _headBobAmplitude = 0.040f;
         [SerializeField] private Vector3 _eyeBaseLocalPosition = new Vector3(0f, 1.68f, 0.12f);
 
         private float _yawDegrees;
@@ -81,17 +62,27 @@ namespace EchoesOfTheLost.Characters.Player
         {
             if (!Application.isPlaying) return;
 
+            if (Core.ServiceLocator.TryGet<UI.UIManager>(out var ui) && ui != null && ui.IsWindowOpen)
+                return;
+
             var kb = Keyboard.current;
             if (kb != null)
             {
-                // [C] toggles First-Person Mode; [V] returns to or cycles Third-Person presets
                 if (kb.cKey.wasPressedThisFrame)
                 {
-                    SetFirstPersonMode(!_isFirstPersonActive);
+                    float startYaw = _thirdPersonCamera != null ? _thirdPersonCamera.CurrentYaw : transform.eulerAngles.y;
+                    float startPitch = _thirdPersonCamera != null ? _thirdPersonCamera.CurrentPitch : 0f;
+                    SetFirstPersonMode(!_isFirstPersonActive, startYaw, startPitch);
+
+                    if (UI.HUDController.Instance != null)
+                    {
+                        string modeName = _isFirstPersonActive ? "First-Person View [C]" : "Third-Person Orbit View [V]";
+                        UI.HUDController.Instance.ShowToast($"Camera Mode: {modeName}", 2.0f);
+                    }
                 }
                 else if (kb.vKey.wasPressedThisFrame && _isFirstPersonActive)
                 {
-                    SetFirstPersonMode(false);
+                    SetFirstPersonMode(false, _yawDegrees, _pitchDegrees);
                 }
             }
 
@@ -107,10 +98,6 @@ namespace EchoesOfTheLost.Characters.Player
             SyncCameraToEyeMount();
         }
 
-        /// <summary>
-        /// Switches between First-Person Controller mode and Third-Person Orbit Camera mode.
-        /// Works in both Edit Mode (for scene framing & screenshot verification) and Play Mode.
-        /// </summary>
         public void SetFirstPersonMode(bool enableFirstPerson, float customYaw = 12f, float customPitch = 3f)
         {
             _isFirstPersonActive = enableFirstPerson;
@@ -118,7 +105,13 @@ namespace EchoesOfTheLost.Characters.Player
             _pitchDegrees = Mathf.Clamp(customPitch, _minPitchDegrees, _maxPitchDegrees);
 
             if (_thirdPersonCamera != null)
+            {
                 _thirdPersonCamera.enabled = !enableFirstPerson;
+                if (!enableFirstPerson)
+                {
+                    _thirdPersonCamera.SetAngles(_yawDegrees, Mathf.Clamp(_pitchDegrees, -20f, 65f));
+                }
+            }
 
             if (_thirdPersonBodyModel != null)
                 _thirdPersonBodyModel.SetActive(!enableFirstPerson);
@@ -138,14 +131,14 @@ namespace EchoesOfTheLost.Characters.Player
                 if (_mainCamera != null)
                     _mainCamera.fieldOfView = _baseFirstPersonFov;
             }
-            else if (_thirdPersonCamera != null)
-            {
-                _thirdPersonCamera.ApplyInitialFraming();
-            }
         }
 
         private void UpdateFirstPersonLook()
         {
+            bool canLook = Cursor.lockState == CursorLockMode.Locked ||
+                           (Mouse.current != null && Mouse.current.rightButton.isPressed);
+            if (!canLook) return;
+
             Vector2 lookDelta = Core.InputManager.Instance != null
                 ? Core.InputManager.Instance.LookInput
                 : (Mouse.current != null ? Mouse.current.delta.ReadValue() : Vector2.zero);

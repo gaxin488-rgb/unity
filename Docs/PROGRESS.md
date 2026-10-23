@@ -127,6 +127,7 @@
 | 95 Lá Mũi Mác Xếp Lớp & Cây Uốn Cong Tự Nhiên (`AppendCurvedTaperedBranch`, 5 Biến thể Sồi/Thông, Arched Dome Leaf Cards & Spherical Outward Normals) | ✅ Done | `TerrainWorldBuilder.cs`, `EnvironmentTextureGenerator.cs` |
 | Khảo Sát Cảnh Quan Map Thuần Khiết (Tạm ẩn capsule nhân vật, viewmodel kiếm FP, Guardian enemies, NPC Elder Maren, Dummy bia tập, tường combat, tắt CombatManager; cho phép di chuyển WASD tự do với tầm nhìn quang đãng 100%) | ✅ Done | `SandboxSceneBuilder.cs`, `GameplaySystemsBuilder.cs`, `Sandbox.unity` |
 | Cây Ven Đường & Tán Lá 380 Lá Nhỏ Với Cành Dăm & Khe Nắng (`UpgradeStandaloneSceneTrees` tự động quét thay thế cây rời cũ sang Mesh Sồi uốn lượn; Texture 7 chùm cành gỗ dăm & 380 lá sồi nhỏ tơi xốp chừa khe thoáng bầu trời, chống viền đen alpha bleeding) | ✅ Done | `EnvironmentTextureGenerator.cs`, `TerrainWorldBuilder.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
+| Sửa Lỗi Toàn Diện Điều Khiển, Camera & Bật Lại Nhân Vật/Combat (`InputManager` lia chuột không trễ, `ThirdPersonCamera` xoay mượt `SmoothDampAngle` & auto-lock cursor, `FirstPersonController` đồng bộ góc nhìn mượt khi bấm [C]/[V], `PlayerController` chống tự xoay 180 độ khi đi lùi FP, bật lại Player/Combat/NPC/Quái, chuyển Cây & Hoa ven đường sang Mesh 3D tối ưu) | ✅ Done | `InputManager.cs`, `ThirdPersonCamera.cs`, `FirstPersonController.cs`, `PlayerController.cs`, `UIManager.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
 
 ---
 

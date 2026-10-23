@@ -318,7 +318,7 @@ namespace EchoesOfTheLost.EditorTools
             model.transform.localPosition = new Vector3(0f, 1f, 0f);
             model.GetComponent<Renderer>().sharedMaterial = matPlayer;
             Object.DestroyImmediate(model.GetComponent<Collider>());
-            model.SetActive(false); // [Tập trung map] Tạm ẩn model nhân vật để quan sát cảnh quan thoáng đãng
+            model.SetActive(true);
 
             var rb = player.AddComponent<Rigidbody>();
             rb.mass = 1f;
@@ -342,7 +342,7 @@ namespace EchoesOfTheLost.EditorTools
             player.AddComponent<ProgressionSystem>();
 
             var combat = player.AddComponent<CombatManager>();
-            combat.enabled = false; // [Tập trung map] Tạm tắt combat để tập trung khám phá thế giới
+            combat.enabled = true;
             SetLayerMask(combat, "_hitLayerMask", -1);
 
             // ── 9. Main Camera & Orbit Follow ──
@@ -588,80 +588,13 @@ namespace EchoesOfTheLost.EditorTools
             go.GetComponent<Renderer>().sharedMaterial = mat;
         }
 
-        // 2. Tạo chùm cành lá từ các tấm Quad đan chéo (thay cho PrimitiveType.Sphere)
-        private static void CreateLeafCluster(Transform parent, Vector3 position, float scale, Material leafMat)
-        {
-            var cluster = new GameObject("LeafCluster");
-            cluster.transform.SetParent(parent, false);
-            cluster.transform.localPosition = position;
-
-            // Tạo 6 mặt phẳng lá xoay các góc khác nhau tạo độ phồng 3D tự nhiên
-            for (int i = 0; i < 6; i++)
-            {
-                var card = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                Object.DestroyImmediate(card.GetComponent<Collider>());
-                card.name = $"LeafCard_{i}";
-                card.transform.SetParent(cluster.transform, false);
-                card.transform.localPosition = Random.insideUnitSphere * (scale * 0.2f);
-                card.transform.localRotation = Quaternion.Euler(
-                    Random.Range(-55f, 55f),
-                    i * 60f + Random.Range(-15f, 15f),
-                    Random.Range(-35f, 35f)
-                );
-                card.transform.localScale = Vector3.one * scale * Random.Range(0.85f, 1.25f);
-                card.GetComponent<Renderer>().sharedMaterial = leafMat;
-            }
-        }
-
-        // 3. Hàm đệ quy tạo cây cao nhiều tầng nhánh và cành con
-        private static void BuildBranch(Transform parent, Vector3 startPos, Quaternion rotation, float length, float radius, int depth, int maxDepth, Material barkMat, Material leafMat)
-        {
-            // Tạo đoạn thân/cành hiện tại
-            var segment = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            segment.name = $"Branch_D{depth}";
-            if (depth > 0) Object.DestroyImmediate(segment.GetComponent<Collider>()); // Giữ collider ở thân chính
-            segment.transform.SetParent(parent, false);
-
-            Vector3 dir = rotation * Vector3.up;
-            segment.transform.localPosition = startPos + dir * (length * 0.5f);
-            segment.transform.localRotation = rotation;
-            segment.transform.localScale = new Vector3(radius * 2f, length * 0.5f, radius * 2f);
-            segment.GetComponent<Renderer>().sharedMaterial = barkMat;
-
-            Vector3 tipPos = startPos + dir * length;
-
-            // Nếu đã đến nhánh ngoài cùng -> gắn chùm lá xum xuê
-            if (depth >= maxDepth)
-            {
-                CreateLeafCluster(parent, tipPos, radius * 18f, leafMat);
-                return;
-            }
-
-            // Nếu ở tầng cành trung gian cũng thêm một ít lá phụ tạo độ dầy tán
-            if (depth >= maxDepth - 1)
-            {
-                CreateLeafCluster(parent, tipPos, radius * 14f, leafMat);
-            }
-
-            // Phân nhánh: Thân chính đi tiếp lên cao + đẻ ra 2 đến 4 nhánh con tỏa ra xung quanh
-            int subBranches = (depth == 0) ? 3 : Random.Range(2, 4);
-            for (int i = 0; i < subBranches; i++)
-            {
-                float yaw = (360f / subBranches) * i + Random.Range(-25f, 25f);
-                float pitch = (i == 0 && depth < 2) ? Random.Range(8f, 18f) : Random.Range(28f, 52f); // 1 nhánh vươn cao, các nhánh khác tỏa rộng
-
-                Quaternion nextRot = rotation * Quaternion.Euler(pitch, yaw, 0f);
-                float nextLength = length * Random.Range(0.68f, 0.82f);
-                float nextRadius = radius * 0.65f;
-
-                BuildBranch(parent, tipPos, nextRot, nextLength, nextRadius, depth + 1, maxDepth, barkMat, leafMat);
-            }
-        }
-
         private static void CreateStylizedTree(string name, Transform parent, Vector3 pos, Material trunkMat, Material leafMat)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent, false);
+
+            var terrain = Terrain.activeTerrain;
+            if (terrain != null) pos.y = terrain.SampleHeight(pos);
             go.transform.position = pos;
 
             int seed = Mathf.Abs(name.GetHashCode() ^ Mathf.RoundToInt(pos.x * 73f + pos.z * 137f));
@@ -678,20 +611,14 @@ namespace EchoesOfTheLost.EditorTools
                 mr.sharedMaterials = new[] { trunkMat, leafMat };
 
                 float yaw = (seed % 360);
-                float scale = 0.95f + (seed % 20) * 0.015f;
+                float scale = 0.90f + (seed % 25) * 0.016f;
                 go.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
                 go.transform.localScale = Vector3.one * scale;
 
                 var col = go.AddComponent<CapsuleCollider>();
                 col.center = new Vector3(0f, 2.5f, 0f);
                 col.height = 5f;
-                col.radius = 0.45f;
-            }
-            else
-            {
-                // Fallback nếu chưa bake mesh asset
-                Random.InitState(seed);
-                BuildBranch(go.transform, Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f, depth: 0, maxDepth: 3, trunkMat, leafMat);
+                col.radius = 0.42f;
             }
         }
 
@@ -787,38 +714,22 @@ namespace EchoesOfTheLost.EditorTools
         private static void CreateRoadsideFlowerCluster(
             string name, Transform parent, Vector3 pos, Material stemMat, Material blossomMat)
         {
-            var root = new GameObject(name).transform;
-            root.SetParent(parent, false);
-            root.position = pos;
+            var go = new GameObject(name);
+            go.transform.SetParent(parent, false);
+            go.transform.position = pos;
 
-            Vector3[] offsets =
+            int seed = Mathf.Abs(name.GetHashCode());
+            go.transform.rotation = Quaternion.Euler(0f, seed % 360, 0f);
+            go.transform.localScale = Vector3.one * (0.85f + (seed % 30) * 0.012f);
+
+            var mesh = AssetDatabase.LoadAssetAtPath<Mesh>("Assets/_Project/Data/Terrain/Mesh_FlowerCluster.asset");
+            if (mesh != null)
             {
-                new Vector3(0f, 0f, 0f),
-                new Vector3(-0.20f, 0f, 0.10f),
-                new Vector3(0.22f, 0f, -0.08f),
-                new Vector3(0.06f, 0f, 0.20f),
-                new Vector3(-0.14f, 0f, -0.16f),
-                new Vector3(0.18f, 0f, 0.14f)
-            };
-
-            for (int i = 0; i < offsets.Length; i++)
-            {
-                float h = 0.32f + (i * 0.035f);
-                var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                stem.name = $"Stem_{i}";
-                stem.transform.SetParent(root, false);
-                stem.transform.localPosition = offsets[i] + new Vector3(0f, h * 0.5f, 0f);
-                stem.transform.localScale = new Vector3(0.038f, h * 0.5f, 0.038f);
-                stem.GetComponent<Renderer>().sharedMaterial = stemMat;
-                Object.DestroyImmediate(stem.GetComponent<Collider>());
-
-                var blossom = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                blossom.name = $"Blossom_{i}";
-                blossom.transform.SetParent(root, false);
-                blossom.transform.localPosition = offsets[i] + new Vector3(0f, h + 0.06f, 0f);
-                blossom.transform.localScale = new Vector3(0.28f, 0.15f, 0.28f);
-                blossom.GetComponent<Renderer>().sharedMaterial = blossomMat;
-                Object.DestroyImmediate(blossom.GetComponent<Collider>());
+                var mf = go.AddComponent<MeshFilter>();
+                mf.sharedMesh = mesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterials = new[] { blossomMat, stemMat };
+                mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
         }
 
@@ -873,7 +784,7 @@ namespace EchoesOfTheLost.EditorTools
             so.FindProperty("_displayName").stringValue = "Elder Maren";
             so.FindProperty("_questToOfferId").stringValue = "quest_first_echo";
             so.ApplyModifiedPropertiesWithoutUndo();
-            npc.SetActive(false); // [Tập trung map] Tạm ẩn NPC để tập trung vào cảnh quan map
+            npc.SetActive(true);
         }
 
         private static void CreateGuardianEnemy(string name, Vector3 pos, Vector3[] waypoints, AnimatorController controller, Material mat, Transform envRoot)
@@ -919,7 +830,7 @@ namespace EchoesOfTheLost.EditorTools
             for (int i = 0; i < wpTransforms.Length; i++)
                 pts.GetArrayElementAtIndex(i).objectReferenceValue = wpTransforms[i];
             so.ApplyModifiedPropertiesWithoutUndo();
-            enemy.SetActive(false); // [Tập trung map] Tạm ẩn kẻ địch để tập trung vào cảnh quan map
+            enemy.SetActive(true);
         }
 
         private static void ConfigureWatchtowerPOI(POIManager poiMgr)
