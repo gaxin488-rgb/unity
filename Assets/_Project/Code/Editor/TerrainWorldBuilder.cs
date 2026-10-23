@@ -5,16 +5,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
-// ============================================================
-//  TerrainWorldBuilder — Complete 4-Stage Unity Terrain Pipeline:
-//    Stage 1: BUILD A TERRAIN (TerrainData + URP Terrain/Lit + Heightmap)
-//    Stage 2: PAINT TEXTURES ON THE TERRAIN (5-Layer Splatmap:
-//             Grass, Earth, Cobble Road, Rock, Mountain Cliff)
-//    Stage 3: ADD GRASS & TREES TO TERRAIN (TreePrototypes +
-//             TreeInstances + 3D DetailPrototype Grass Layer)
-//    Stage 4: EDIT THE TERRAIN (Sculpting, Road Carving, Plateau
-//             Stamping, Hydraulic/Thermal Smoothing tools)
-// ============================================================
 namespace EchoesOfTheLost.EditorTools
 {
     public static class TerrainWorldBuilder
@@ -24,8 +14,13 @@ namespace EchoesOfTheLost.EditorTools
         private const string MatDir = "Assets/_Project/Art/Materials";
         private const string TerrainAssetPath = TerrainDir + "/TerrainData_VerdaWilds.asset";
         private const string TerrainMatPath = MatDir + "/Mat_Terrain_URP.mat";
-        private const string OakPrefabPath = PrefabDir + "/PF_VerdaOakTree.prefab";
-        private const string PinePrefabPath = PrefabDir + "/PF_VerdaPineTree.prefab";
+
+        private const string OakPrefabPathA = PrefabDir + "/PF_VerdaOakTree.prefab";
+        private const string OakPrefabPathB = PrefabDir + "/PF_VerdaOakTree_VariantB.prefab";
+        private const string OakPrefabPathC = PrefabDir + "/PF_VerdaOakTree_VariantC.prefab";
+        private const string PinePrefabPathA = PrefabDir + "/PF_VerdaPineTree.prefab";
+        private const string PinePrefabPathB = PrefabDir + "/PF_VerdaPineTree_VariantB.prefab";
+
         private const string GrassDetailPrefabPath = PrefabDir + "/PF_TerrainGrassDetail.prefab";
         private const string FlowerYellowPrefabPath = PrefabDir + "/PF_FlowerCluster_Yellow.prefab";
         private const string FlowerRedPrefabPath = PrefabDir + "/PF_FlowerCluster_Red.prefab";
@@ -43,17 +38,17 @@ namespace EchoesOfTheLost.EditorTools
         [MenuItem("EotL/Terrain/Run Full Terrain Pipeline (All 4 Steps)")]
         public static void RunFullPipelineMenu()
         {
-            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var envMats = EnvironmentTextureGenerator.GenerateAll(forceRegenerateTextures: true);
             BuildCompleteTerrain(null, envMats);
             UnityEditor.SceneManagement.EditorSceneManager.MarkAllScenesDirty();
             UnityEditor.SceneManagement.EditorSceneManager.SaveOpenScenes();
-            Debug.Log("[TerrainWorldBuilder] Completed all 4 Terrain stages (Build -> Sculpt/Edit -> Paint 5 Splat Layers -> Populate Grass & Trees)!");
+            Debug.Log("[TerrainWorldBuilder] Completed all 4 Terrain stages with realistic organic trees!");
         }
 
         [MenuItem("EotL/Terrain/1. Build Terrain & Sculpt Heightmap")]
         public static void MenuStep1BuildAndSculpt()
         {
-            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var envMats = EnvironmentTextureGenerator.GenerateAll(forceRegenerateTextures: false);
             var t = EnsureTerrainInScene(null, envMats);
             SculptVerdaWildsHeightmap(t.terrainData);
             Debug.Log("[TerrainWorldBuilder] Step 1 Complete: Built Terrain & sculpted Verda Wilds heightmap.");
@@ -62,31 +57,31 @@ namespace EchoesOfTheLost.EditorTools
         [MenuItem("EotL/Terrain/2. Paint Textures on Terrain (5 Splat Layers)")]
         public static void MenuStep2PaintTextures()
         {
-            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var envMats = EnvironmentTextureGenerator.GenerateAll(forceRegenerateTextures: false);
             var t = EnsureTerrainInScene(null, envMats);
             PaintTerrainSplatmap(t.terrainData, envMats.TerrainLayers);
-            Debug.Log("[TerrainWorldBuilder] Step 2 Complete: Painted 5 PBR TerrainLayers (Grass, Earth, Road, Rock, Mountain).");
+            Debug.Log("[TerrainWorldBuilder] Step 2 Complete: Painted 5 PBR TerrainLayers.");
         }
 
         [MenuItem("EotL/Terrain/3. Add Grass & Trees to Terrain")]
         public static void MenuStep3AddGrassAndTrees()
         {
-            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var envMats = EnvironmentTextureGenerator.GenerateAll(forceRegenerateTextures: true);
             var t = EnsureTerrainInScene(null, envMats);
             PopulateTreesAndGrassDetails(t.terrainData, envMats);
             t.Flush();
-            Debug.Log("[TerrainWorldBuilder] Step 3 Complete: Added Oak/Pine TreeInstances and 3D Grass Detail layer to Terrain.");
+            Debug.Log("[TerrainWorldBuilder] Step 3 Complete: Updated realistic organic Oak/Pine trees and grass.");
         }
 
-        [MenuItem("EotL/Terrain/4. Edit Terrain — Smooth & Re-Carve Winding Road")]
+        [MenuItem("EotL/Terrain/4. Edit Terrain - Smooth & Re-Carve Winding Road")]
         public static void MenuStep4EditTerrain()
         {
-            var envMats = EnvironmentTextureGenerator.GenerateAll();
+            var envMats = EnvironmentTextureGenerator.GenerateAll(forceRegenerateTextures: false);
             var t = EnsureTerrainInScene(null, envMats);
             ApplyTerrainEditsAndSmoothing(t.terrainData, smoothIterations: 2);
             PaintTerrainSplatmap(t.terrainData, envMats.TerrainLayers);
             t.Flush();
-            Debug.Log("[TerrainWorldBuilder] Step 4 Complete: Applied terrain smoothing, terraced plateaus, and road bed carving.");
+            Debug.Log("[TerrainWorldBuilder] Step 4 Complete: Applied terrain smoothing and road carving.");
         }
 
         // ── Master Builder Called by SandboxSceneBuilder ──────
@@ -97,18 +92,11 @@ namespace EchoesOfTheLost.EditorTools
             Directory.CreateDirectory(PrefabDir);
             Directory.CreateDirectory(MatDir);
 
-            // Stage 1: Build Terrain & Sculpt base heightmap
             Terrain terrain = EnsureTerrainInScene(parent, envMats);
             TerrainData td = terrain.terrainData;
             SculptVerdaWildsHeightmap(td);
-
-            // Stage 4: Edit Terrain (carve winding road pass, terrace plateaus, smooth transitions)
             ApplyTerrainEditsAndSmoothing(td, smoothIterations: 1);
-
-            // Stage 2: Paint 5 PBR Textures onto the Terrain splatmap
             PaintTerrainSplatmap(td, envMats.TerrainLayers);
-
-            // Stage 3: Add 3D Grass Detail prototypes & Tree prototypes/instances
             PopulateTreesAndGrassDetails(td, envMats);
 
             terrain.drawHeightmap = true;
@@ -116,7 +104,7 @@ namespace EchoesOfTheLost.EditorTools
             terrain.detailObjectDistance = 140f;
             terrain.detailObjectDensity = 1.0f;
             terrain.treeDistance = 500f;
-            terrain.treeBillboardDistance = 180f;
+            terrain.treeBillboardDistance = 250f;
             terrain.Flush();
 
             EditorUtility.SetDirty(td);
@@ -144,7 +132,6 @@ namespace EchoesOfTheLost.EditorTools
             if (envMats.TerrainLayers != null && envMats.TerrainLayers.Length > 0)
                 td.terrainLayers = envMats.TerrainLayers;
 
-            // Remove old flat ground plane if present
             var oldPlane = GameObject.Find("Valley_Grass_Floor");
             if (oldPlane != null) Object.DestroyImmediate(oldPlane);
 
@@ -207,21 +194,17 @@ namespace EchoesOfTheLost.EditorTools
                     float normX = (float)x / (res - 1);
                     float worldX = TerrainOrigin.x + normX * TerrainSize.x;
 
-                    // Distance from central gameplay sanctuary (0, 10)
                     float dx = worldX;
                     float dz = worldZ - 10f;
                     float distFromSanctuary = Mathf.Sqrt(dx * dx + (dz * 0.85f) * (dz * 0.85f));
 
-                    // 1. Undulating rolling meadow hills with high/low variation ("thảm cỏ trải dài cao thấp")
                     float primaryRolling = FBM(worldX * 0.020f + 11.3f, worldZ * 0.020f + 27.9f, 3);
                     float secondarySwells = Mathf.Sin(worldX * 0.042f + 1.7f) * Mathf.Cos(worldZ * 0.038f + 2.4f) * 0.5f + 0.5f;
                     float hillNoise = primaryRolling * 0.70f + secondarySwells * 0.30f;
                     float hillMask = SmoothRange(20f, 54f, distFromSanctuary);
                     float hillHeight = hillNoise * 0.14f * hillMask;
 
-                    // 2. Outer Mountain Ring (r > 52m) with ridged alpine peaks
                     float mountainMask = SmoothRange(48f, 98f, distFromSanctuary);
-                    // Keep a southern valley entrance pass narrower & lower so road enters from South
                     float southPassFactor = (worldZ < -10f && Mathf.Abs(worldX) < 28f)
                         ? SmoothRange(6f, 28f, Mathf.Abs(worldX))
                         : 1f;
@@ -229,7 +212,6 @@ namespace EchoesOfTheLost.EditorTools
                     float ridgeNoise = RidgedMF(worldX * 0.022f + 5.7f, worldZ * 0.022f + 19.4f, 4);
                     float mountainHeight = ridgeNoise * 0.62f * mountainMask * southPassFactor;
 
-                    // 3. Extra northern sanctuary backdrop peak behind the Watchtower Ruins (z > 34)
                     float northBackdrop = SmoothRange(30f, 75f, worldZ) * (0.22f + 0.35f * ridgeNoise);
 
                     float totalNormalized = Mathf.Clamp01(hillHeight + mountainHeight + northBackdrop);
@@ -259,24 +241,21 @@ namespace EchoesOfTheLost.EditorTools
 
                     float h = heights[y, x];
 
-                    // Edit 1: Flatten central gameplay courtyard & ruin arena (x in [-16, 16], z in [-14, 26])
                     float boxDistX = Mathf.Max(0f, Mathf.Abs(worldX) - 15f);
                     float boxDistZ = worldZ < -14f ? (-14f - worldZ) : (worldZ > 25f ? (worldZ - 25f) : 0f);
                     float boxDist = Mathf.Sqrt(boxDistX * boxDistX + boxDistZ * boxDistZ);
                     float arenaFlatten = SmoothRange(0f, 12f, boxDist);
                     h *= arenaFlatten;
 
-                    // Edit 2: Carve smooth winding southern road pass (z from -110 to 0)
                     float roadCenter = RoadCenterX(worldZ);
                     float distToRoad = Mathf.Abs(worldX - roadCenter);
                     if (worldZ >= -115f && worldZ <= 12f)
                     {
                         float roadFlatten = SmoothRange(3.5f, 14f, distToRoad);
-                        float GentlySlopedRoadBed = Mathf.Clamp01((-worldZ - 14f) / 100f) * 0.04f;
-                        h = Mathf.Lerp(GentlySlopedRoadBed, h, roadFlatten);
+                        float gentlySlopedRoadBed = Mathf.Clamp01((-worldZ - 14f) / 100f) * 0.04f;
+                        h = Mathf.Lerp(gentlySlopedRoadBed, h, roadFlatten);
                     }
 
-                    // Edit 3: Sculpt scenic West & East earthen overlooks (x ≈ ±24, z ≈ 10..22)
                     float westOverlook = OverlookMask(worldX, worldZ, -25f, 14f, 9f, 12f);
                     float eastOverlook = OverlookMask(worldX, worldZ, 25f, 14f, 9f, 12f);
                     float terraceTargetHeight = 3.2f / TerrainSize.y;
@@ -286,7 +265,6 @@ namespace EchoesOfTheLost.EditorTools
                 }
             }
 
-            // Edit 4: Gentle 3x3 Gaussian/Box smoothing pass on outer terrain while keeping central arena crisp
             for (int iter = 0; iter < smoothIterations; iter++)
             {
                 float[,] smoothed = (float[,])heights.Clone();
@@ -315,11 +293,6 @@ namespace EchoesOfTheLost.EditorTools
         }
 
         // ── STAGE 2: PAINT TEXTURES ON THE TERRAIN (5 Splat Layers) ──
-        // Layer 0: TL_Grass    (Cỏ thảo nguyên)
-        // Layer 1: TL_Earth    (Đất rừng)
-        // Layer 2: TL_Road     (Đường đi lát đá cuội)
-        // Layer 3: TL_Rock     (Đá tảng tự nhiên)
-        // Layer 4: TL_Mountain (Vách núi đá)
 
         public static void PaintTerrainSplatmap(TerrainData td, TerrainLayer[] layers)
         {
@@ -344,10 +317,9 @@ namespace EchoesOfTheLost.EditorTools
                     float worldX = TerrainOrigin.x + normX * TerrainSize.x;
 
                     float altitude = td.GetInterpolatedHeight(normX, normZ);
-                    float slope = td.GetSteepness(normX, normZ); // degrees 0..90
+                    float slope = td.GetSteepness(normX, normZ);
                     float detailNoise = FBM(worldX * 0.08f + 3.1f, worldZ * 0.08f + 7.7f, 2);
 
-                    // 1. Road distance (Main South-North road + Camp East/West branches)
                     float distMainRoad = (worldZ >= -115f && worldZ <= 11f)
                         ? Mathf.Abs(worldX - RoadCenterX(worldZ))
                         : 999f;
@@ -359,11 +331,9 @@ namespace EchoesOfTheLost.EditorTools
                     float roadDist = Mathf.Min(distMainRoad, distBranchRoad);
                     float wRoad = 1f - SmoothRange(1.8f, 3.4f, roadDist);
 
-                    //Dirt shoulder along the road edge & around ruin base
                     float roadShoulder = (1f - SmoothRange(2.6f, 5.2f, roadDist)) * (1f - wRoad);
                     float ruinApron = (Mathf.Abs(worldX) < 10f && worldZ > 7f && worldZ < 24f) ? 0.55f : 0f;
 
-                    // 2. Slope & Altitude weights for Grass, Earth, Rock, Mountain
                     float wMountain = SmoothRange(34f, 50f, slope) + SmoothRange(11f, 22f, altitude) * 0.85f;
                     wMountain = Mathf.Clamp01(wMountain);
 
@@ -380,7 +350,6 @@ namespace EchoesOfTheLost.EditorTools
 
                     float wGrass = Mathf.Clamp01(1f - Mathf.Max(wRoad, Mathf.Max(wMountain, wRock * 0.85f)) - wEarth * 0.65f);
 
-                    // Suppress non-road layers right on top of the cobblestone path
                     if (wRoad > 0.01f)
                     {
                         float nonRoadScale = 1f - wRoad;
@@ -390,7 +359,6 @@ namespace EchoesOfTheLost.EditorTools
                         wMountain *= nonRoadScale;
                     }
 
-                    // Normalize weights so they sum to 1.0
                     float sum = wGrass + wEarth + wRoad + wRock + wMountain + 0.0001f;
                     map[y, x, 0] = wGrass / sum;
                     map[y, x, 1] = wEarth / sum;
@@ -407,21 +375,33 @@ namespace EchoesOfTheLost.EditorTools
 
         public static void PopulateTreesAndGrassDetails(TerrainData td, EnvironmentMaterialSet envMats)
         {
-            // 1. Create / Update Tree Prefabs (Single-Mesh Multi-Submesh for Unity Terrain TreePrototype)
-            GameObject oakPrefab = CreateOrUpdateTerrainTreePrefab(
-                OakPrefabPath, "Mesh_VerdaOakTree.asset", isPine: false, envMats.TreeTrunk, envMats.TreeLeaves);
-            GameObject pinePrefab = CreateOrUpdateTerrainTreePrefab(
-                PinePrefabPath, "Mesh_VerdaPineTree.asset", isPine: true, envMats.TreeTrunk, envMats.TreeLeaves);
+            td.treeInstances = new TreeInstance[0];
+            td.treePrototypes = new TreePrototype[0];
+
+            // Build 3 distinct Oak variants + 2 Pine variants for a natural, non-repetitive forest
+            GameObject oakA = CreateOrUpdateTerrainTreePrefab(
+                OakPrefabPathA, "Mesh_VerdaOakTree_A.asset", isPine: false, variantSeed: 101, envMats.TreeTrunk, envMats.TreeLeaves);
+            GameObject oakB = CreateOrUpdateTerrainTreePrefab(
+                OakPrefabPathB, "Mesh_VerdaOakTree_B.asset", isPine: false, variantSeed: 207, envMats.TreeTrunk, envMats.TreeLeaves);
+            GameObject oakC = CreateOrUpdateTerrainTreePrefab(
+                OakPrefabPathC, "Mesh_VerdaOakTree_C.asset", isPine: false, variantSeed: 319, envMats.TreeTrunk, envMats.TreeLeaves);
+
+            GameObject pineA = CreateOrUpdateTerrainTreePrefab(
+                PinePrefabPathA, "Mesh_VerdaPineTree_A.asset", isPine: true, variantSeed: 405, envMats.TreeTrunk, envMats.TreeLeaves);
+            GameObject pineB = CreateOrUpdateTerrainTreePrefab(
+                PinePrefabPathB, "Mesh_VerdaPineTree_B.asset", isPine: true, variantSeed: 512, envMats.TreeTrunk, envMats.TreeLeaves);
 
             td.treePrototypes = new[]
             {
-                new TreePrototype { prefab = oakPrefab, bendFactor = 0.15f },
-                new TreePrototype { prefab = pinePrefab, bendFactor = 0.10f }
+                new TreePrototype { prefab = oakA, bendFactor = 0.15f },
+                new TreePrototype { prefab = oakB, bendFactor = 0.15f },
+                new TreePrototype { prefab = oakC, bendFactor = 0.15f },
+                new TreePrototype { prefab = pineA, bendFactor = 0.10f },
+                new TreePrototype { prefab = pineB, bendFactor = 0.10f }
             };
             td.RefreshPrototypes();
 
-            // Place 180+ Terrain TreeInstances across the valley hills & foothills
-            var trees = new List<TreeInstance>(220);
+            var trees = new List<TreeInstance>(240);
             int gridSteps = 28;
             for (int gz = 0; gz < gridSteps; gz++)
             {
@@ -436,13 +416,11 @@ namespace EchoesOfTheLost.EditorTools
                     float worldX = TerrainOrigin.x + normX * TerrainSize.x;
                     float worldZ = TerrainOrigin.z + normZ * TerrainSize.z;
 
-                    // Keep central ruin courtyard & road clear of trees
                     if (Mathf.Abs(worldX) < 13.5f && worldZ > -16f && worldZ < 26f)
                         continue;
                     if (worldZ <= 12f && Mathf.Abs(worldX - RoadCenterX(worldZ)) < 6.5f)
                         continue;
 
-                    // Keep within a 110m radius around the valley so trees frame the playable region
                     float distFromCenter = Vector2.Distance(new Vector2(worldX, worldZ), new Vector2(0f, 8f));
                     if (distFromCenter > 105f)
                         continue;
@@ -452,22 +430,30 @@ namespace EchoesOfTheLost.EditorTools
                     if (slope > 32f || altitude > 16f)
                         continue;
 
-                    // Forest density mask
                     float density = FBM(worldX * 0.04f + 9.2f, worldZ * 0.04f + 4.5f, 2);
                     if (density < 0.36f)
                         continue;
 
-                    int protoIndex = (altitude > 4.2f || slope > 16f) ? 1 : 0; // Pines higher up, Oaks in valley
-                    float scale = 0.85f + Hash(gx * 19 + gz * 41, 303f) * 0.45f;
+                    bool usePine = (altitude > 4.5f || slope > 17f);
+                    int protoIndex = usePine
+                        ? 3 + ((gx + gz) % 2)
+                        : (gx * 7 + gz * 13) % 3;
+
+                    float widthScale = 0.82f + Hash(gx * 19 + gz * 41, 303f) * 0.52f;
+                    float heightScale = widthScale * (0.88f + Hash(gx * 23 + gz * 59, 606f) * 0.28f);
                     float rot = Hash(gx * 71 + gz * 61, 404f) * Mathf.PI * 2f;
+
+                    // Subtle canopy tint variation between trees
+                    float tintShift = 0.90f + Hash(gx * 31 + gz * 17, 707f) * 0.14f;
+                    Color treeTint = new Color(tintShift, Mathf.Clamp01(tintShift + 0.03f), tintShift * 0.95f, 1f);
 
                     trees.Add(new TreeInstance
                     {
                         position = new Vector3(normX, altitude / TerrainSize.y, normZ),
-                        widthScale = scale,
-                        heightScale = scale,
+                        widthScale = widthScale,
+                        heightScale = heightScale,
                         rotation = rot,
-                        color = Color.white,
+                        color = treeTint,
                         lightmapColor = Color.white,
                         prototypeIndex = protoIndex
                     });
@@ -475,7 +461,7 @@ namespace EchoesOfTheLost.EditorTools
             }
             td.SetTreeInstances(trees.ToArray(), snapToHeightmap: true);
 
-            // 2. Create / Update 3D Grass Detail & 4 Distinct Flower Prototypes (Yellow, Red, Blue, Purple)
+            // 2. Create / Update Grass & Wildflower Detail Prototypes
             GameObject grassDetailPrefab = CreateOrUpdateGrassDetailPrefab(GrassDetailPrefabPath, envMats.GrassTuft);
             GameObject flowerYellowPrefab = CreateOrUpdateFlowerDetailPrefab(FlowerYellowPrefabPath, envMats.FlowerYellow, envMats.FlowerStem);
             GameObject flowerRedPrefab = CreateOrUpdateFlowerDetailPrefab(FlowerRedPrefabPath, envMats.FlowerRed, envMats.FlowerStem);
@@ -493,8 +479,8 @@ namespace EchoesOfTheLost.EditorTools
                 useInstancing = true,
                 minWidth = 0.85f,
                 maxWidth = 1.45f,
-                minHeight = 0.70f,
-                maxHeight = 1.30f,
+                minHeight = 0.65f,
+                maxHeight = 1.25f,
                 healthyColor = new Color(0.45f, 0.82f, 0.32f),
                 dryColor = new Color(0.62f, 0.76f, 0.30f)
             };
@@ -583,7 +569,6 @@ namespace EchoesOfTheLost.EditorTools
                     float normX = (float)x / (detW - 1);
                     float worldX = TerrainOrigin.x + normX * TerrainSize.x;
 
-                    // Skip central ruin platform & cobblestone road
                     if (Mathf.Abs(worldX) < 9.5f && worldZ > 7.5f && worldZ < 24f)
                         continue;
                     if (worldZ <= 12f && Mathf.Abs(worldX - RoadCenterX(worldZ)) < 2.8f)
@@ -596,18 +581,15 @@ namespace EchoesOfTheLost.EditorTools
                     if (slope > 28f || altitude > 13f)
                         continue;
 
-                    // 1. Continuous rolling grass carpet ("thảm cỏ trải dài cao thấp")
                     float meadowNoise = FBM(worldX * 0.12f + 17.1f, worldZ * 0.12f + 31.4f, 2);
                     if (meadowNoise > 0.28f)
                     {
                         grassMap[y, x] = Mathf.Clamp(Mathf.RoundToInt((meadowNoise - 0.25f) * 15f), 3, 11);
                     }
 
-                    // 2. Interspersed wildflower clusters (Yellow, Red, Blue, Purple)
                     float distRoad = (worldZ <= 12f) ? Mathf.Abs(worldX - RoadCenterX(worldZ)) : 999f;
                     float flowerNoise = FBM(worldX * 0.15f + 44.2f, worldZ * 0.15f + 88.6f, 2);
 
-                    // Roadside verge flower strip (matching reference Slow Roads image with yellow wildflowers along road)
                     if (distRoad >= 2.9f && distRoad <= 6.8f && worldZ >= -110f && worldZ <= 10f)
                     {
                         if (flowerNoise > 0.38f)
@@ -626,7 +608,6 @@ namespace EchoesOfTheLost.EditorTools
                     }
                     else if (flowerNoise > 0.46f)
                     {
-                        // Open rolling meadow flower carpets: organic colored ribbons & zones
                         int count = Mathf.Clamp(Mathf.RoundToInt((flowerNoise - 0.42f) * 15f), 2, 6);
                         float zone = FBM(worldX * 0.055f + 14.2f, worldZ * 0.055f + 27.8f, 2);
 
@@ -649,26 +630,33 @@ namespace EchoesOfTheLost.EditorTools
             td.SetDetailLayer(0, 0, 4, purpleMap);
         }
 
-        // ── Procedural Mesh Prefab Builders for Terrain Prototypes ──
+        // ── Asset Persistence Helper ─────────────────────────
 
-        private static GameObject CreateOrUpdateTerrainTreePrefab(
-            string prefabPath, string meshFileName, bool isPine, Material trunkMat, Material leafMat)
+        private static Mesh SaveOrUpdateMeshAsset(Mesh newMesh, string meshPath)
         {
-            string meshPath = $"{TerrainDir}/{meshFileName}";
-            Mesh treeMesh = BuildCombinedTreeMesh(isPine);
-            treeMesh.name = Path.GetFileNameWithoutExtension(meshFileName);
-
             var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
             if (existingMesh == null)
             {
-                AssetDatabase.CreateAsset(treeMesh, meshPath);
+                AssetDatabase.CreateAsset(newMesh, meshPath);
+                return newMesh;
             }
             else
             {
-                EditorUtility.CopySerialized(treeMesh, existingMesh);
-                Object.DestroyImmediate(treeMesh);
-                treeMesh = existingMesh;
+                existingMesh.Clear();
+                EditorUtility.CopySerialized(newMesh, existingMesh);
+                EditorUtility.SetDirty(existingMesh);
+                Object.DestroyImmediate(newMesh);
+                return existingMesh;
             }
+        }
+
+        private static GameObject CreateOrUpdateTerrainTreePrefab(
+            string prefabPath, string meshFileName, bool isPine, int variantSeed, Material trunkMat, Material leafMat)
+        {
+            string meshPath = $"{TerrainDir}/{meshFileName}";
+            Mesh treeMesh = BuildCombinedTreeMesh(isPine, variantSeed);
+            treeMesh.name = Path.GetFileNameWithoutExtension(meshFileName);
+            treeMesh = SaveOrUpdateMeshAsset(treeMesh, meshPath);
 
             var tempGO = new GameObject(Path.GetFileNameWithoutExtension(prefabPath));
             var mf = tempGO.AddComponent<MeshFilter>();
@@ -678,9 +666,9 @@ namespace EchoesOfTheLost.EditorTools
             mr.sharedMaterials = new[] { trunkMat, leafMat };
 
             var col = tempGO.AddComponent<CapsuleCollider>();
-            col.center = new Vector3(0f, 2.2f, 0f);
-            col.radius = 0.38f;
-            col.height = 4.4f;
+            col.center = new Vector3(0f, 3.0f, 0f);
+            col.radius = 0.42f;
+            col.height = 6.0f;
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(tempGO, prefabPath);
             Object.DestroyImmediate(tempGO);
@@ -692,18 +680,7 @@ namespace EchoesOfTheLost.EditorTools
             string meshPath = $"{TerrainDir}/Mesh_GrassDetailCluster.asset";
             Mesh grassMesh = BuildCrossedGrassMesh();
             grassMesh.name = "Mesh_GrassDetailCluster";
-
-            var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-            if (existingMesh == null)
-            {
-                AssetDatabase.CreateAsset(grassMesh, meshPath);
-            }
-            else
-            {
-                EditorUtility.CopySerialized(grassMesh, existingMesh);
-                Object.DestroyImmediate(grassMesh);
-                grassMesh = existingMesh;
-            }
+            grassMesh = SaveOrUpdateMeshAsset(grassMesh, meshPath);
 
             var tempGO = new GameObject("PF_TerrainGrassDetail");
             var mf = tempGO.AddComponent<MeshFilter>();
@@ -723,18 +700,7 @@ namespace EchoesOfTheLost.EditorTools
             string meshPath = $"{TerrainDir}/Mesh_FlowerCluster.asset";
             Mesh flowerMesh = BuildFlowerClusterMesh();
             flowerMesh.name = "Mesh_FlowerCluster";
-
-            var existingMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
-            if (existingMesh == null)
-            {
-                AssetDatabase.CreateAsset(flowerMesh, meshPath);
-            }
-            else
-            {
-                EditorUtility.CopySerialized(flowerMesh, existingMesh);
-                Object.DestroyImmediate(flowerMesh);
-                flowerMesh = existingMesh;
-            }
+            flowerMesh = SaveOrUpdateMeshAsset(flowerMesh, meshPath);
 
             string goName = Path.GetFileNameWithoutExtension(prefabPath);
             var tempGO = new GameObject(goName);
@@ -750,247 +716,504 @@ namespace EchoesOfTheLost.EditorTools
             return prefab;
         }
 
-        private static void AddLimbToCombines(Vector3 start, Vector3 end, float radius, List<CombineInstance> combines, Mesh cylMesh)
+        // ── Realistic Organic Multi-Segment Tree & Spherical-Normal Canopy Builder ──
+
+        // Builds a multi-segment curved & smoothly tapering branch tube (with optional root flare at base)
+        private static void AppendCurvedTaperedBranch(
+            Vector3 startPos, Vector3 initialDir, float totalLength,
+            float rStart, float rEnd, int rings, int sides,
+            Vector3 curveBias, bool flareRoot, float vOffset,
+            List<Vector3> verts, List<Vector3> norms, List<Vector2> uvs, List<int> tris,
+            out Vector3[] spinePositions, out Vector3[] spineTangents)
         {
-            Vector3 delta = end - start;
-            float len = delta.magnitude;
-            if (len < 0.005f) return;
-            Vector3 mid = (start + end) * 0.5f;
-            Quaternion rot = Quaternion.FromToRotation(Vector3.up, delta.normalized);
-            combines.Add(new CombineInstance
+            spinePositions = new Vector3[rings + 1];
+            spineTangents = new Vector3[rings + 1];
+
+            Vector3 pos = startPos;
+            Vector3 dir = initialDir.normalized;
+            float stepLen = totalLength / rings;
+
+            int baseVertIdx = verts.Count;
+
+            for (int r = 0; r <= rings; r++)
             {
-                mesh = cylMesh,
-                transform = Matrix4x4.TRS(mid, rot, new Vector3(radius * 2f, len * 0.5f, radius * 2f))
-            });
+                float t = (float)r / rings;
+                spinePositions[r] = pos;
+                spineTangents[r] = dir;
+
+                // Smooth exponential taper + natural flared root buttress near ground
+                float radius = Mathf.Lerp(rStart, rEnd, Mathf.Pow(t, 0.85f));
+                if (flareRoot && t < 0.35f)
+                {
+                    float flareT = 1f - (t / 0.35f);
+                    radius += rStart * 0.55f * flareT * flareT;
+                }
+
+                Quaternion ringRot = Quaternion.FromToRotation(Vector3.up, dir);
+
+                for (int s = 0; s <= sides; s++)
+                {
+                    float u = (float)s / sides;
+                    float ang = u * Mathf.PI * 2f;
+
+                    // Subtle fluted root ridges at the base of the trunk
+                    float flute = (flareRoot && t < 0.4f)
+                        ? 1f + 0.14f * (1f - t / 0.4f) * Mathf.Sin(ang * 5f)
+                        : 1f;
+
+                    Vector3 localRadial = new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang));
+                    Vector3 worldRadial = ringRot * localRadial;
+
+                    verts.Add(pos + worldRadial * (radius * flute));
+                    norms.Add(worldRadial.normalized);
+                    uvs.Add(new Vector2(u * 2f, vOffset + t * totalLength * 0.45f));
+                }
+
+                if (r < rings)
+                {
+                    // Gently curve the branch along curveBias as it grows
+                    dir = (dir + curveBias * (1f / rings)).normalized;
+                    pos += dir * stepLen;
+                }
+            }
+
+            int stride = sides + 1;
+            for (int r = 0; r < rings; r++)
+            {
+                int row0 = baseVertIdx + r * stride;
+                int row1 = baseVertIdx + (r + 1) * stride;
+                for (int s = 0; s < sides; s++)
+                {
+                    tris.Add(row0 + s);
+                    tris.Add(row1 + s);
+                    tris.Add(row0 + s + 1);
+
+                    tris.Add(row0 + s + 1);
+                    tris.Add(row1 + s);
+                    tris.Add(row1 + s + 1);
+                }
+            }
         }
 
-        private static Mesh BuildCombinedTreeMesh(bool isPine)
+        // Appends a slightly arched 3D leaf card whose normals point spherically outward from canopyCenter.
+        // This eliminates flat X-plane shading seams and gives the tree a lush, volumetric 3D crown!
+        private static void AppendArchedFoliageCard(
+            Vector3 cardCenter, Quaternion cardRot, float scale, Vector3 canopyCenter,
+            List<Vector3> verts, List<Vector3> norms, List<Vector2> uvs, List<int> tris)
         {
-            var cylGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            var quadGO = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            Mesh cylMesh = cylGO.GetComponent<MeshFilter>().sharedMesh;
-            Mesh quadMesh = quadGO.GetComponent<MeshFilter>().sharedMesh;
+            int idx = verts.Count;
+            float half = scale * 0.5f;
+            float arch = scale * 0.14f; // 5-vertex arched dome card so it is never a flat plane
 
-            var trunkCombines = new List<CombineInstance>();
-            var canopyCombines = new List<CombineInstance>();
+            Vector3[] localPts =
+            {
+                new Vector3(-half, -half,  arch * 0.4f), // 0: bottom-left
+                new Vector3( half, -half,  arch * 0.4f), // 1: bottom-right
+                new Vector3(-half,  half,  arch * 0.4f), // 2: top-left
+                new Vector3( half,  half,  arch * 0.4f), // 3: top-right
+                new Vector3( 0f,    0f,   -arch)         // 4: arched center apex
+            };
+
+            Vector2[] localUVs =
+            {
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0.5f, 0.5f)
+            };
+
+            for (int i = 0; i < 5; i++)
+            {
+                Vector3 wp = cardCenter + cardRot * localPts[i];
+                verts.Add(wp);
+
+                // SPHERICAL OUTWARD NORMAL: makes overlapping cards shade as a cohesive 3D leaf cloud
+                Vector3 outward = (wp - canopyCenter).normalized;
+                Vector3 sphericalNormal = (outward * 0.78f + Vector3.up * 0.35f).normalized;
+                norms.Add(sphericalNormal);
+                uvs.Add(localUVs[i]);
+            }
+
+            // 4 triangles front + 4 triangles back
+            int[] cardTris =
+            {
+                0, 2, 4,  2, 3, 4,  3, 1, 4,  1, 0, 4,
+                0, 4, 2,  2, 4, 3,  3, 4, 1,  1, 4, 0
+            };
+
+            for (int t = 0; t < cardTris.Length; t++)
+                tris.Add(idx + cardTris[t]);
+        }
+
+        // Creates a lush dome-shaped sub-crown of overlapping arched leaf cards at the end of a branch
+        private static void AppendCanopyCloudDome(
+            Vector3 domeCenter, float domeRadius, Vector3 treeCrownCenter, System.Random rng,
+            List<Vector3> verts, List<Vector3> norms, List<Vector2> uvs, List<int> tris)
+        {
+            // Fibonacci hemisphere distribution around the branch tip so leaves form a natural billowing puff
+            int cardCount = 14;
+            float goldenAngle = Mathf.PI * (3f - Mathf.Sqrt(5f));
+
+            for (int i = 0; i < cardCount; i++)
+            {
+                float t = (float)i / (cardCount - 1);
+                // Bias towards upper hemisphere (y from -0.25 to +0.95) for an umbrella-like oak bough
+                float y = Mathf.Lerp(-0.22f, 0.95f, t);
+                float r = Mathf.Sqrt(Mathf.Max(0.01f, 1f - y * y));
+                float theta = i * goldenAngle + (float)(rng.NextDouble() * 0.4 - 0.2);
+
+                Vector3 dir = new Vector3(Mathf.Cos(theta) * r, y, Mathf.Sin(theta) * r).normalized;
+                float dist = domeRadius * (0.38f + 0.32f * (float)rng.NextDouble());
+                Vector3 cardPos = domeCenter + dir * dist;
+
+                // Orient each arched card tangential to the dome surface with slight organic flutter
+                Quaternion lookOut = Quaternion.LookRotation(dir, Vector3.up);
+                Quaternion flutter = Quaternion.Euler(
+                    (float)(rng.NextDouble() * 36.0 - 18.0),
+                    (float)(rng.NextDouble() * 36.0 - 18.0),
+                    (float)(rng.NextDouble() * 180.0));
+
+                float cardSize = domeRadius * (0.95f + (float)rng.NextDouble() * 0.32f);
+
+                // Blend normal center between local dome and overall tree crown
+                Vector3 shadingCenter = Vector3.Lerp(domeCenter - Vector3.up * (domeRadius * 0.35f), treeCrownCenter, 0.35f);
+                AppendArchedFoliageCard(cardPos, lookOut * flutter, cardSize, shadingCenter, verts, norms, uvs, tris);
+            }
+        }
+
+        private static Mesh BuildCombinedTreeMesh(bool isPine, int variantSeed = 42)
+        {
+            var trunkVerts = new List<Vector3>();
+            var trunkNorms = new List<Vector3>();
+            var trunkUVs = new List<Vector2>();
+            var trunkTris = new List<int>();
+
+            var leafVerts = new List<Vector3>();
+            var leafNorms = new List<Vector3>();
+            var leafUVs = new List<Vector2>();
+            var leafTris = new List<int>();
+
+            var rng = new System.Random(variantSeed);
 
             if (isPine)
             {
-                // Pine trunk (tall tapering cylinder)
-                AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0f, 3.8f, 0f), 0.42f, trunkCombines, cylMesh);
-                AddLimbToCombines(new Vector3(0f, 3.8f, 0f), new Vector3(0f, 7.2f, 0f), 0.26f, trunkCombines, cylMesh);
+                // Tall natural conifer (9.8m) with slight organic lean, tapering trunk, wooden boughs & drooping needle tiers
+                Vector3 lean = new Vector3(
+                    (float)(rng.NextDouble() - 0.5) * 0.08f,
+                    0f,
+                    (float)(rng.NextDouble() - 0.5) * 0.08f);
 
-                // Pine tiered foliage cards (graduating smaller upwards)
-                float[] tierHeights = { 3.0f, 4.2f, 5.3f, 6.3f, 7.3f };
-                float[] tierScales = { 3.2f, 2.6f, 2.0f, 1.4f, 0.9f };
+                AppendCurvedTaperedBranch(
+                    Vector3.zero, Vector3.up, totalLength: 9.6f,
+                    rStart: 0.40f, rEnd: 0.03f, rings: 8, sides: 8,
+                    curveBias: lean, flareRoot: true, vOffset: 0f,
+                    trunkVerts, trunkNorms, trunkUVs, trunkTris,
+                    out Vector3[] trunkPts, out _);
 
-                for (int t = 0; t < tierHeights.Length; t++)
+                Vector3 pineCrownCenter = new Vector3(0f, 5.8f, 0f);
+                int tiers = 7;
+
+                for (int t = 0; t < tiers; t++)
                 {
-                    float th = tierHeights[t];
-                    float ts = tierScales[t];
-                    int cardCount = 6;
-                    for (int c = 0; c < cardCount; c++)
+                    float tierFrac = (float)t / (tiers - 1);
+                    float height = Mathf.Lerp(2.3f, 8.8f, tierFrac);
+                    float maxReach = Mathf.Lerp(2.45f, 0.60f, tierFrac);
+                    int boughs = (t < 4) ? 6 : 5;
+
+                    Vector3 tierOrigin = Vector3.Lerp(trunkPts[1], trunkPts[trunkPts.Length - 1], tierFrac * 0.92f);
+                    tierOrigin.y = height;
+
+                    for (int b = 0; b < boughs; b++)
                     {
-                        float ang = c * (360f / cardCount);
-                        Quaternion rot = Quaternion.Euler(32f, ang, 0f);
-                        Vector3 offset = Quaternion.Euler(0f, ang, 0f) * Vector3.forward * (ts * 0.32f);
-                        canopyCombines.Add(new CombineInstance
+                        float yaw = b * (360f / boughs) + t * 29f + (float)(rng.NextDouble() * 18.0 - 9.0);
+                        Quaternion bRot = Quaternion.Euler(18f + tierFrac * 8f, yaw, 0f);
+                        Vector3 bDir = bRot * Vector3.forward;
+                        float bLen = maxReach * (0.85f + (float)rng.NextDouble() * 0.25f);
+
+                        AppendCurvedTaperedBranch(
+                            tierOrigin, bDir, bLen,
+                            rStart: 0.08f * (1f - tierFrac * 0.55f), rEnd: 0.015f,
+                            rings: 3, sides: 5,
+                            curveBias: new Vector3(0f, 0.12f, 0f), flareRoot: false, vOffset: 1f,
+                            trunkVerts, trunkNorms, trunkUVs, trunkTris,
+                            out Vector3[] bPts, out _);
+
+                        // Layered drooping pine foliage pads along the bough
+                        for (int p = 1; p < bPts.Length; p++)
                         {
-                            mesh = quadMesh,
-                            transform = Matrix4x4.TRS(new Vector3(0f, th, 0f) + offset, rot, Vector3.one * ts)
-                        });
+                            Vector3 padPos = bPts[p];
+                            float padScale = maxReach * (0.68f - p * 0.08f);
+                            for (int c = -1; c <= 1; c++)
+                            {
+                                Quaternion cardRot = Quaternion.Euler(28f, yaw + c * 32f, c * 12f);
+                                AppendArchedFoliageCard(
+                                    padPos + Vector3.up * 0.08f, cardRot, padScale, pineCrownCenter,
+                                    leafVerts, leafNorms, leafUVs, leafTris);
+                            }
+                        }
                     }
+                }
+
+                // Pointed conifer top leader tuft
+                Vector3 topTip = trunkPts[trunkPts.Length - 1];
+                for (int c = 0; c < 5; c++)
+                {
+                    Quaternion rot = Quaternion.Euler(15f, c * 72f, 0f);
+                    AppendArchedFoliageCard(topTip, rot, 0.95f, topTip - Vector3.up * 0.5f,
+                        leafVerts, leafNorms, leafUVs, leafTris);
                 }
             }
             else
             {
-                // Recursive Branching Deciduous Oak Tree with Crossed Leaf Quads
-                var rng = new System.Random(42);
+                // ── Realistic Multi-Tiered Gnarled Oak Tree ──
+                // 1. Main sinuous trunk from flared roots up into the crown (no flat cylinder joints!)
+                Vector3 trunkSway = new Vector3(
+                    (float)(rng.NextDouble() * 0.28 - 0.14),
+                    0f,
+                    (float)(rng.NextDouble() * 0.28 - 0.14));
 
-                void BuildBranchToCombines(
-                    Vector3 startPos, Quaternion rotation, float length, float radius,
+                float mainTrunkLen = 4.6f + (float)rng.NextDouble() * 0.7f;
+                AppendCurvedTaperedBranch(
+                    Vector3.zero, Vector3.up, mainTrunkLen,
+                    rStart: 0.44f, rEnd: 0.18f, rings: 7, sides: 9,
+                    curveBias: trunkSway, flareRoot: true, vOffset: 0f,
+                    trunkVerts, trunkNorms, trunkUVs, trunkTris,
+                    out Vector3[] trunkSpine, out Vector3[] trunkDirs);
+
+                Vector3 overallCrownCenter = new Vector3(0f, 5.8f, 0f);
+
+                // Recursive secondary & tertiary branch generator
+                void GrowOakBough(
+                    Vector3 startPos, Vector3 startDir, float length, float rStart, float rEnd,
                     int depth, int maxDepth)
                 {
-                    Vector3 dir = rotation * Vector3.up;
-                    Vector3 mid = startPos + dir * (length * 0.5f);
+                    // Natural upward phototropism (branches arch outward then curve gently toward the sky)
+                    Vector3 gnarl = new Vector3(
+                        (float)(rng.NextDouble() * 0.36 - 0.18),
+                        0.22f + depth * 0.08f,
+                        (float)(rng.NextDouble() * 0.36 - 0.18));
 
-                    trunkCombines.Add(new CombineInstance
-                    {
-                        mesh = cylMesh,
-                        transform = Matrix4x4.TRS(mid, rotation, new Vector3(radius * 2f, length * 0.5f, radius * 2f))
-                    });
+                    int rings = Mathf.Max(3, 5 - depth);
+                    int sides = Mathf.Max(5, 8 - depth);
 
-                    Vector3 tipPos = startPos + dir * length;
+                    AppendCurvedTaperedBranch(
+                        startPos, startDir, length, rStart, rEnd, rings, sides,
+                        curveBias: gnarl, flareRoot: false, vOffset: depth * 1.3f,
+                        trunkVerts, trunkNorms, trunkUVs, trunkTris,
+                        out Vector3[] spine, out Vector3[] tangents);
 
-                    void AddLeafCluster(Vector3 pos, float scale)
-                    {
-                        for (int i = 0; i < 6; i++)
-                        {
-                            Vector3 offset = new Vector3(
-                                (float)(rng.NextDouble() * 2.0 - 1.0),
-                                (float)(rng.NextDouble() * 2.0 - 1.0),
-                                (float)(rng.NextDouble() * 2.0 - 1.0)
-                            ) * (scale * 0.2f);
-
-                            Quaternion rot = Quaternion.Euler(
-                                (float)(rng.NextDouble() * 110.0 - 55.0),
-                                i * 60f + (float)(rng.NextDouble() * 30.0 - 15.0),
-                                (float)(rng.NextDouble() * 70.0 - 35.0)
-                            );
-
-                            float cardScale = scale * (0.85f + (float)rng.NextDouble() * 0.40f);
-
-                            canopyCombines.Add(new CombineInstance
-                            {
-                                mesh = quadMesh,
-                                transform = Matrix4x4.TRS(pos + offset, rot, Vector3.one * cardScale)
-                            });
-                        }
-                    }
+                    Vector3 tipPos = spine[spine.Length - 1];
+                    Vector3 tipDir = tangents[tangents.Length - 1];
 
                     if (depth >= maxDepth)
                     {
-                        AddLeafCluster(tipPos, radius * 18f);
+                        // Outer twig tip: place a lush volumetric leaf cloud dome hiding the fine twig tip
+                        float domeRadius = 1.45f + (float)rng.NextDouble() * 0.35f;
+                        AppendCanopyCloudDome(tipPos, domeRadius, overallCrownCenter, rng,
+                            leafVerts, leafNorms, leafUVs, leafTris);
                         return;
                     }
 
+                    // Mid-bough foliage cluster so the interior canopy is full and continuous
                     if (depth >= maxDepth - 1)
                     {
-                        AddLeafCluster(tipPos, radius * 14f);
+                        Vector3 midBranchPos = spine[spine.Length / 2];
+                        AppendCanopyCloudDome(midBranchPos + Vector3.up * 0.25f, 1.25f, overallCrownCenter, rng,
+                            leafVerts, leafNorms, leafUVs, leafTris);
                     }
 
-                    int subBranches = (depth == 0) ? 3 : rng.Next(2, 4);
-                    for (int i = 0; i < subBranches; i++)
+                    // Spawn 2 to 3 sub-branches at staggered points (not all at the exact same point!)
+                    int subCount = (depth == 1) ? 3 : 2;
+                    for (int i = 0; i < subCount; i++)
                     {
-                        float yaw = (360f / subBranches) * i + (float)(rng.NextDouble() * 50.0 - 25.0);
-                        float pitch = (i == 0 && depth < 2)
-                            ? 8f + (float)rng.NextDouble() * 10f
-                            : 28f + (float)rng.NextDouble() * 24f;
+                        // Fork from 65%..100% along the parent branch for staggered natural joints
+                        int spawnRing = (i == 0) ? spine.Length - 1 : Mathf.Max(2, spine.Length - 2);
+                        Vector3 forkPos = spine[spawnRing];
+                        Vector3 parentDir = tangents[spawnRing];
 
-                        Quaternion nextRot = rotation * Quaternion.Euler(pitch, yaw, 0f);
-                        float nextLength = length * (0.68f + (float)rng.NextDouble() * 0.14f);
-                        float nextRadius = radius * 0.65f;
+                        float yaw = i * (360f / subCount) + depth * 57f + (float)(rng.NextDouble() * 44.0 - 22.0);
+                        float spreadAngle = (i == 0)
+                            ? 18f + (float)rng.NextDouble() * 14f
+                            : 34f + (float)rng.NextDouble() * 18f;
 
-                        BuildBranchToCombines(tipPos, nextRot, nextLength, nextRadius, depth + 1, maxDepth);
+                        Quaternion forkRot = Quaternion.FromToRotation(Vector3.up, parentDir)
+                                           * Quaternion.Euler(spreadAngle, yaw, 0f);
+                        Vector3 childDir = (forkRot * Vector3.up).normalized;
+
+                        float childLen = length * (0.72f + (float)rng.NextDouble() * 0.14f);
+                        float childRStart = Mathf.Lerp(rStart, rEnd, (float)spawnRing / (spine.Length - 1)) * 0.82f;
+                        // Outer twigs taper down to 0.02m so no blunt wooden cylinders ever poke out!
+                        float childREnd = (depth + 1 >= maxDepth) ? 0.022f : childRStart * 0.56f;
+
+                        GrowOakBough(forkPos, childDir, childLen, childRStart, childREnd, depth + 1, maxDepth);
                     }
                 }
 
-                BuildBranchToCombines(Vector3.zero, Quaternion.identity, length: 3.8f, radius: 0.42f,
-                    depth: 0, maxDepth: 3);
+                // 2. Sprout 5 primary boughs at DIFFERENT heights along the upper half of the trunk (rings 3, 4, 5, 6)
+                int[] boughRings = { 3, 4, 5, 5, 6 };
+                float[] boughYaws = { 0f, 135f, 255f, 65f, 195f };
+                float[] boughPitches = { 52f, 48f, 42f, 38f, 20f };
+                float[] boughLengths = { 2.4f, 2.5f, 2.6f, 2.4f, 2.2f };
+
+                float yawOffset = (float)(rng.NextDouble() * 360.0);
+
+                for (int b = 0; b < boughRings.Length; b++)
+                {
+                    int rIdx = Mathf.Clamp(boughRings[b], 2, trunkSpine.Length - 1);
+                    Vector3 origin = trunkSpine[rIdx];
+                    Vector3 tDir = trunkDirs[rIdx];
+
+                    float tFrac = (float)rIdx / (trunkSpine.Length - 1);
+                    float trunkRadAtNode = Mathf.Lerp(0.44f, 0.18f, tFrac);
+
+                    float yaw = boughYaws[b] + yawOffset + (float)(rng.NextDouble() * 24.0 - 12.0);
+                    float pitch = boughPitches[b] + (float)(rng.NextDouble() * 10.0 - 5.0);
+
+                    Quaternion bRot = Quaternion.FromToRotation(Vector3.up, tDir) * Quaternion.Euler(pitch, yaw, 0f);
+                    Vector3 bDir = (bRot * Vector3.up).normalized;
+
+                    GrowOakBough(
+                        origin, bDir,
+                        length: boughLengths[b],
+                        rStart: trunkRadAtNode * 0.72f,
+                        rEnd: trunkRadAtNode * 0.36f,
+                        depth: 1, maxDepth: 3);
+                }
+
+                // 3. Central crown top dome so the tree silhouette is full and rounded at the apex
+                Vector3 apex = trunkSpine[trunkSpine.Length - 1] + Vector3.up * 2.1f;
+                AppendCanopyCloudDome(apex, 1.75f, overallCrownCenter, rng,
+                    leafVerts, leafNorms, leafUVs, leafTris);
             }
 
-            var trunkSubMesh = new Mesh();
-            trunkSubMesh.CombineMeshes(trunkCombines.ToArray(), true, true);
-
-            var canopySubMesh = new Mesh();
-            canopySubMesh.CombineMeshes(canopyCombines.ToArray(), true, true);
-
-            var finalCombine = new[]
-            {
-                new CombineInstance { mesh = trunkSubMesh, transform = Matrix4x4.identity },
-                new CombineInstance { mesh = canopySubMesh, transform = Matrix4x4.identity }
-            };
-
+            // Assemble Multi-Submesh WITHOUT calling RecalculateNormals() so our custom spherical
+            // foliage normals and smooth cylindrical bark normals are preserved 100%!
             var finalMesh = new Mesh();
-            finalMesh.CombineMeshes(finalCombine, mergeSubMeshes: false, useMatrices: true);
-            finalMesh.RecalculateBounds();
-            finalMesh.RecalculateNormals();
+            int trunkVertCount = trunkVerts.Count;
 
-            Object.DestroyImmediate(trunkSubMesh);
-            Object.DestroyImmediate(canopySubMesh);
-            Object.DestroyImmediate(cylGO);
-            Object.DestroyImmediate(quadGO);
+            var allVerts = new List<Vector3>(trunkVertCount + leafVerts.Count);
+            allVerts.AddRange(trunkVerts);
+            allVerts.AddRange(leafVerts);
+
+            var allNorms = new List<Vector3>(trunkVertCount + leafNorms.Count);
+            allNorms.AddRange(trunkNorms);
+            allNorms.AddRange(leafNorms);
+
+            var allUVs = new List<Vector2>(trunkVertCount + leafUVs.Count);
+            allUVs.AddRange(trunkUVs);
+            allUVs.AddRange(leafUVs);
+
+            var shiftedLeafTris = new List<int>(leafTris.Count);
+            for (int i = 0; i < leafTris.Count; i++)
+                shiftedLeafTris.Add(leafTris[i] + trunkVertCount);
+
+            finalMesh.SetVertices(allVerts);
+            finalMesh.SetNormals(allNorms);
+            finalMesh.SetUVs(0, allUVs);
+            finalMesh.subMeshCount = 2;
+            finalMesh.SetTriangles(trunkTris, 0);
+            finalMesh.SetTriangles(shiftedLeafTris, 1);
+            finalMesh.RecalculateBounds();
 
             return finalMesh;
         }
+
+        // ── 3D Multi-Petal Wildflower Cluster ────────────────
 
         private static Mesh BuildFlowerClusterMesh()
         {
-            var cylGO = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            var sphGO = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            var cubeGO = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            Mesh cylMesh = cylGO.GetComponent<MeshFilter>().sharedMesh;
-            Mesh sphMesh = sphGO.GetComponent<MeshFilter>().sharedMesh;
-            Mesh cubeMesh = cubeGO.GetComponent<MeshFilter>().sharedMesh;
+            var petalVerts = new List<Vector3>();
+            var petalNorms = new List<Vector3>();
+            var petalUVs = new List<Vector2>();
+            var petalTris = new List<int>();
 
-            var stemCombines = new List<CombineInstance>();
-            var petalCombines = new List<CombineInstance>();
+            var stemVerts = new List<Vector3>();
+            var stemNorms = new List<Vector3>();
+            var stemUVs = new List<Vector2>();
+            var stemTris = new List<int>();
 
-            // 1. Center blossom
-            AddLimbToCombines(new Vector3(0f, 0f, 0f), new Vector3(0f, 0.40f, 0f), 0.024f, stemCombines, cylMesh);
-            petalCombines.Add(new CombineInstance
+            Vector3[] tops =
             {
-                mesh = sphMesh,
-                transform = Matrix4x4.TRS(new Vector3(0f, 0.42f, 0f), Quaternion.identity, new Vector3(0.24f, 0.12f, 0.24f))
-            });
-
-            // 2. 4 Surrounding angled blossoms
-            Vector3[] flowerOffsets =
-            {
-                new Vector3(-0.16f, 0.36f, 0.08f),
-                new Vector3(0.18f, 0.38f, 0.06f),
-                new Vector3(0.05f, 0.33f, -0.17f),
+                new Vector3( 0.00f, 0.42f,  0.00f),
+                new Vector3(-0.16f, 0.36f,  0.08f),
+                new Vector3( 0.18f, 0.38f,  0.06f),
+                new Vector3( 0.05f, 0.33f, -0.17f),
                 new Vector3(-0.10f, 0.35f, -0.14f)
             };
 
-            for (int i = 0; i < flowerOffsets.Length; i++)
+            for (int f = 0; f < tops.Length; f++)
             {
-                Vector3 top = flowerOffsets[i];
-                AddLimbToCombines(new Vector3(top.x * 0.15f, 0.02f, top.z * 0.15f), top, 0.020f, stemCombines, cylMesh);
-                petalCombines.Add(new CombineInstance
+                Vector3 top = tops[f];
+                Vector3 basePos = new Vector3(top.x * 0.25f, 0f, top.z * 0.25f);
+                AppendCurvedTaperedBranch(
+                    basePos, (top - basePos).normalized, Vector3.Distance(basePos, top),
+                    0.018f, 0.010f, 2, 5, Vector3.zero, false, 0f,
+                    stemVerts, stemNorms, stemUVs, stemTris, out _, out _);
+
+                int petals = 6;
+                for (int p = 0; p < petals; p++)
                 {
-                    mesh = sphMesh,
-                    transform = Matrix4x4.TRS(top + new Vector3(0f, 0.02f, 0f), Quaternion.identity, new Vector3(0.20f, 0.10f, 0.20f))
-                });
+                    float yaw = p * (360f / petals) + f * 17f;
+                    Quaternion rot = Quaternion.Euler(25f, yaw, 0f);
+                    int idx = petalVerts.Count;
+
+                    Vector3 p0 = top;
+                    Vector3 p1 = top + rot * new Vector3(-0.045f, 0.02f, 0.06f);
+                    Vector3 p2 = top + rot * new Vector3( 0.045f, 0.02f, 0.06f);
+                    Vector3 p3 = top + rot * new Vector3( 0.000f, 0.01f, 0.13f);
+
+                    petalVerts.Add(p0); petalVerts.Add(p1); petalVerts.Add(p2); petalVerts.Add(p3);
+                    for (int n = 0; n < 4; n++) petalNorms.Add(Vector3.up);
+                    petalUVs.Add(new Vector2(0.5f, 0f));
+                    petalUVs.Add(new Vector2(0f, 0.5f));
+                    petalUVs.Add(new Vector2(1f, 0.5f));
+                    petalUVs.Add(new Vector2(0.5f, 1f));
+
+                    petalTris.Add(idx + 0); petalTris.Add(idx + 1); petalTris.Add(idx + 2);
+                    petalTris.Add(idx + 1); petalTris.Add(idx + 3); petalTris.Add(idx + 2);
+                    petalTris.Add(idx + 0); petalTris.Add(idx + 2); petalTris.Add(idx + 1);
+                    petalTris.Add(idx + 1); petalTris.Add(idx + 2); petalTris.Add(idx + 3);
+                }
             }
-
-            // 3. Basal leaf blades (3 angled green slabs around base)
-            for (int i = 0; i < 3; i++)
-            {
-                float angle = i * 120f + 25f;
-                stemCombines.Add(new CombineInstance
-                {
-                    mesh = cubeMesh,
-                    transform = Matrix4x4.TRS(
-                        new Vector3(Mathf.Cos(angle * Mathf.Deg2Rad) * 0.10f, 0.09f, Mathf.Sin(angle * Mathf.Deg2Rad) * 0.10f),
-                        Quaternion.Euler(22f, angle, 0f),
-                        new Vector3(0.18f, 0.03f, 0.30f))
-                });
-            }
-
-            var stemSubMesh = new Mesh();
-            stemSubMesh.CombineMeshes(stemCombines.ToArray(), true, true);
-
-            var petalSubMesh = new Mesh();
-            petalSubMesh.CombineMeshes(petalCombines.ToArray(), true, true);
-
-            // Submesh 0 = Petals (Vivid Flower Colors), Submesh 1 = Stems (Green)
-            var finalCombine = new[]
-            {
-                new CombineInstance { mesh = petalSubMesh, transform = Matrix4x4.identity },
-                new CombineInstance { mesh = stemSubMesh, transform = Matrix4x4.identity }
-            };
 
             var finalMesh = new Mesh();
-            finalMesh.CombineMeshes(finalCombine, mergeSubMeshes: false, useMatrices: true);
-            finalMesh.RecalculateBounds();
-            finalMesh.RecalculateNormals();
+            int petalVertCount = petalVerts.Count;
 
-            Object.DestroyImmediate(stemSubMesh);
-            Object.DestroyImmediate(petalSubMesh);
-            Object.DestroyImmediate(cylGO);
-            Object.DestroyImmediate(sphGO);
-            Object.DestroyImmediate(cubeGO);
+            var allVerts = new List<Vector3>(petalVertCount + stemVerts.Count);
+            allVerts.AddRange(petalVerts);
+            allVerts.AddRange(stemVerts);
+
+            var allNorms = new List<Vector3>(petalVertCount + stemNorms.Count);
+            allNorms.AddRange(petalNorms);
+            allNorms.AddRange(stemNorms);
+
+            var allUVs = new List<Vector2>(petalVertCount + stemUVs.Count);
+            allUVs.AddRange(petalUVs);
+            allUVs.AddRange(stemUVs);
+
+            var shiftedStemTris = new List<int>(stemTris.Count);
+            for (int i = 0; i < stemTris.Count; i++)
+                shiftedStemTris.Add(stemTris[i] + petalVertCount);
+
+            finalMesh.SetVertices(allVerts);
+            finalMesh.SetNormals(allNorms);
+            finalMesh.SetUVs(0, allUVs);
+            finalMesh.subMeshCount = 2;
+            finalMesh.SetTriangles(petalTris, 0);
+            finalMesh.SetTriangles(shiftedStemTris, 1);
+            finalMesh.RecalculateBounds();
 
             return finalMesh;
         }
+
+        // ── Crossed Grass Tuft Mesh ──────────────────────────
 
         public static Mesh BuildCrossedGrassMesh()
         {
             var mesh = new Mesh();
             mesh.name = "Mesh_GrassDetailCluster";
 
-            // 3 intersecting vertical Quads (Cards) at 0°, 60°, 120°
             int quadCount = 3;
             float width = 0.92f;
             float height = 0.82f;
@@ -1009,11 +1232,8 @@ namespace EchoesOfTheLost.EditorTools
 
                 int baseIdx = vertices.Count;
 
-                // Bottom vertices (pinned to ground at y = 0)
                 Vector3 bl = -right * (width * 0.46f);
                 Vector3 br = right * (width * 0.46f);
-
-                // Top vertices (flared slightly outward for natural spreading tuft silhouette)
                 Vector3 tl = -right * (width * 0.52f) + Vector3.up * height;
                 Vector3 tr = right * (width * 0.52f) + Vector3.up * height;
 
@@ -1022,7 +1242,6 @@ namespace EchoesOfTheLost.EditorTools
                 vertices.Add(tl);
                 vertices.Add(tr);
 
-                // Soft upward foliage normal trick: blends horizontal card normal with upward vector
                 Vector3 softNormal = (cardNormal * 0.35f + Vector3.up * 0.85f).normalized;
                 normals.Add(softNormal);
                 normals.Add(softNormal);
@@ -1034,7 +1253,6 @@ namespace EchoesOfTheLost.EditorTools
                 uvs.Add(new Vector2(0f, 1f));
                 uvs.Add(new Vector2(1f, 1f));
 
-                // Front face
                 triangles.Add(baseIdx + 0);
                 triangles.Add(baseIdx + 2);
                 triangles.Add(baseIdx + 1);
@@ -1043,7 +1261,6 @@ namespace EchoesOfTheLost.EditorTools
                 triangles.Add(baseIdx + 3);
                 triangles.Add(baseIdx + 1);
 
-                // Back face
                 triangles.Add(baseIdx + 0);
                 triangles.Add(baseIdx + 1);
                 triangles.Add(baseIdx + 2);
@@ -1062,7 +1279,7 @@ namespace EchoesOfTheLost.EditorTools
             return mesh;
         }
 
-        // ── Terrain Math & Spline Helpers ─────────────────────
+        // ── Terrain Math & Spline Helpers ────────────────────
 
         public static float RoadCenterX(float worldZ)
         {
