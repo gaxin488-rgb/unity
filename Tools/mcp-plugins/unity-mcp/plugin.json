@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "unity-mcp",
+  "description": "Điều khiển Unity Editor chạy ngầm 100% từ Antigravity: tự động bấm/focus ngầm cửa sổ Unity để Refresh & Compile sạch (unity_focus_and_compile), thực thi C# trực tiếp (unity_eval), gọi 48 nhóm lệnh Pipeline (unity_command), kích hoạt Menu Bar ngầm (unity_invoke_menu) và đọc log biên dịch."
+}

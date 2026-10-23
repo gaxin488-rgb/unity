@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "background-ui-mcp",
+  "description": "Điều khiển và tương tác giao diện ứng dụng Windows chạy ngầm 100%: click nút bấm, điền văn bản, gửi phím tắt, đọc trực tiếp cây giao diện JSON mà KHÔNG chiếm chuột, KHÔNG giật phím, KHÔNG đè cửa sổ và KHÔNG cần chụp màn hình liên tục."
+}

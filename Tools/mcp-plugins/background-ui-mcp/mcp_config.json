@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "background-ui-mcp": {
+      "command": "C:\\Python314\\python.exe",
+      "args": ["-u", "mcp_server.py"],
+      "cwd": "C:\\Users\\Admin\\.gemini\\config\\plugins\\background-ui-mcp"
+    }
+  }
+}
