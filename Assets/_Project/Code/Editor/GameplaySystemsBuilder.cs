@@ -3,7 +3,6 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using EchoesOfTheLost.Characters.Player;
-using EchoesOfTheLost.Systems.Combat;
 using EchoesOfTheLost.World;
 
 // ============================================================================
@@ -337,47 +336,6 @@ namespace EchoesOfTheLost.EditorTools
             c2.transform.localScale = Vector3.one * 0.76f;
             c2.GetComponent<Renderer>().sharedMaterial = woodMat;
             c2.AddComponent<PlaceholderObjectMarker>().ConfigurePlaceholder("CRATE_02", PlaceholderArchetype.InteractableCrate, Vector3.one * 0.76f, "Wood", Color.green);
-
-            // 5. Sparring Combat Target Dummy (Testing Combo Attacks, Sound Effects & Wobble Animation)
-            var dummyGO = new GameObject("Blockout_CombatTargetDummy");
-            dummyGO.transform.SetParent(root, false);
-            dummyGO.transform.position = new Vector3(1.6f, 0.05f, 13.5f);
-
-            var dummyStand = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            dummyStand.name = "Dummy_BaseStand";
-            dummyStand.transform.SetParent(dummyGO.transform, false);
-            dummyStand.transform.localPosition = new Vector3(0f, 0.12f, 0f);
-            dummyStand.transform.localScale = new Vector3(1.1f, 0.12f, 1.1f);
-            dummyStand.GetComponent<Renderer>().sharedMaterial = stoneMat;
-
-            var dummyBody = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            dummyBody.name = "Dummy_Torso";
-            dummyBody.transform.SetParent(dummyGO.transform, false);
-            dummyBody.transform.localPosition = new Vector3(0f, 1.15f, 0f);
-            dummyBody.transform.localScale = new Vector3(0.55f, 0.85f, 0.55f);
-            dummyBody.GetComponent<Renderer>().sharedMaterial = woodMat;
-            Object.DestroyImmediate(dummyBody.GetComponent<Collider>());
-
-            var dummyCrossbar = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            dummyCrossbar.name = "Dummy_Crossarms";
-            dummyCrossbar.transform.SetParent(dummyBody.transform, false);
-            dummyCrossbar.transform.localPosition = new Vector3(0f, 0.35f, 0f);
-            dummyCrossbar.transform.localScale = new Vector3(2.4f, 0.25f, 0.35f);
-            dummyCrossbar.GetComponent<Renderer>().sharedMaterial = woodMat;
-            Object.DestroyImmediate(dummyCrossbar.GetComponent<Collider>());
-
-            var col = dummyGO.AddComponent<CapsuleCollider>();
-            col.center = new Vector3(0f, 1.15f, 0f);
-            col.height = 2.1f;
-            col.radius = 0.65f;
-
-            var impactSfx = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Hit_Impact.wav"));
-            var dummyComp = dummyGO.AddComponent<CombatTargetDummy>();
-            dummyComp.ConfigureDummy(dummyBody.transform, dummyBody.GetComponent<Renderer>(), impactSfx, new Color(0.52f, 0.36f, 0.22f));
-
-            var dummyMarker = dummyGO.AddComponent<PlaceholderObjectMarker>();
-            dummyMarker.ConfigurePlaceholder("TARGET_DUMMY_01", PlaceholderArchetype.CombatTargetDummy, new Vector3(1.2f, 2.1f, 1.2f), "Wood", Color.red);
-            dummyGO.SetActive(true);
         }
 
         // ── 3. Gameplay Trigger Volumes ─────────────────────────────────────
@@ -476,18 +434,7 @@ namespace EchoesOfTheLost.EditorTools
             Material bladeGlowMat,
             Material hiltMat)
         {
-            // A. Configure Combat Audio on CombatManager
-            if (player.TryGetComponent<CombatManager>(out var combat))
-            {
-                var lightSlash = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Sword_Light_Slash.wav"));
-                var heavySlash = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Sword_Heavy_Slash.wav"));
-                var hitImpact = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Hit_Impact.wav"));
-                var parrySpark = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Parry_Spark.wav"));
-                var blockThud = AssetDatabase.LoadAssetAtPath<AudioClip>(Path.Combine(SfxCombat, "SFX_Block_Thud.wav"));
-                combat.ConfigureCombatAudio(lightSlash, heavySlash, hitImpact, parrySpark, blockThud);
-            }
-
-            // B. Add PlayerFootstepAudio
+            // A. Add PlayerFootstepAudio
             if (!player.TryGetComponent<PlayerFootstepAudio>(out var footstepAudio))
             {
                 footstepAudio = player.AddComponent<PlayerFootstepAudio>();

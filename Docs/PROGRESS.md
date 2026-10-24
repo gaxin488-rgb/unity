@@ -1,6 +1,6 @@
 # 📊 Tiến Độ Phát Triển — Echoes of the Lost
 
-> **Cập nhật:** 2026-10-23 | **Unity Version:** `6000.6.5f1` (Unity 6 LTS) | **Trạng thái:** Phase 0–4 Vertical Slice "Verda Wilds" Hoàn Chỉnh ✅
+> **Cập nhật:** 2026-10-24 | **Unity Version:** `6000.6.5f1` (Unity 6 LTS) | **Trạng thái:** Phase 0–4 Vertical Slice "Verda Wilds" Hoàn Chỉnh ✅
 
 ---
 
@@ -128,6 +128,7 @@
 | Khảo Sát Cảnh Quan Map Thuần Khiết (Tạm ẩn capsule nhân vật, viewmodel kiếm FP, Guardian enemies, NPC Elder Maren, Dummy bia tập, tường combat, tắt CombatManager; cho phép di chuyển WASD tự do với tầm nhìn quang đãng 100%) | ✅ Done | `SandboxSceneBuilder.cs`, `GameplaySystemsBuilder.cs`, `Sandbox.unity` |
 | Cây Ven Đường & Tán Lá 380 Lá Nhỏ Với Cành Dăm & Khe Nắng (`UpgradeStandaloneSceneTrees` tự động quét thay thế cây rời cũ sang Mesh Sồi uốn lượn; Texture 7 chùm cành gỗ dăm & 380 lá sồi nhỏ tơi xốp chừa khe thoáng bầu trời, chống viền đen alpha bleeding) | ✅ Done | `EnvironmentTextureGenerator.cs`, `TerrainWorldBuilder.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
 | Sửa Lỗi Toàn Diện Điều Khiển, Camera & Bật Lại Nhân Vật/Combat (`InputManager` lia chuột không trễ, `ThirdPersonCamera` xoay mượt `SmoothDampAngle` & auto-lock cursor, `FirstPersonController` đồng bộ góc nhìn mượt khi bấm [C]/[V], `PlayerController` chống tự xoay 180 độ khi đi lùi FP, bật lại Player/Combat/NPC/Quái, chuyển Cây & Hoa ven đường sang Mesh 3D tối ưu) | ✅ Done | `InputManager.cs`, `ThirdPersonCamera.cs`, `FirstPersonController.cs`, `PlayerController.cs`, `UIManager.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
+| Xóa Bỏ Player Model, CombatManager, NPC Elder Maren & Combat Target Dummy (Dọn dẹp triệt để mesh capsule nhân vật, gỡ bỏ CombatManager, xóa NPC Elder Maren & Mat_ElderMaren, gỡ dummy bia tập khỏi GameplaySystemsBuilder; tách độc lập IDamageable interface đảm bảo compile sạch 0 lỗi và scene Sandbox tinh gọn) | ✅ Done | `CombatManager.cs` (deleted), `CombatTargetDummy.cs` (deleted), `Mat_ElderMaren.mat` (deleted), `IDamageable.cs`, `SandboxSceneBuilder.cs`, `GameplaySystemsBuilder.cs`, `Sandbox.unity` |
 
 ---
 

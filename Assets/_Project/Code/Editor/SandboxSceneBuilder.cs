@@ -211,7 +211,6 @@ namespace EchoesOfTheLost.EditorTools
             var matCrystal = envMats.Crystal;
 
             var matPlayer = CreateOrLoadMaterial("Mat_Player.mat", new Color(0.20f, 0.55f, 0.90f));
-            var matNpc = CreateOrLoadMaterial("Mat_ElderMaren.mat", new Color(0.90f, 0.72f, 0.22f));
             var matEnemy = CreateOrLoadMaterial("Mat_Guardian.mat", new Color(0.82f, 0.24f, 0.24f));
 
             // ── Create ScriptableObject Assets ──
@@ -296,10 +295,7 @@ namespace EchoesOfTheLost.EditorTools
             var poiMgr = poiGO.AddComponent<POIManager>();
             ConfigureWatchtowerPOI(poiMgr);
 
-            // ── 6. NPC: Elder Maren (Quest Giver) ──
-            CreateElderMarenNPC(new Vector3(-2.5f, 0.05f, 5.5f), controller, matNpc);
-
-            // ── 7. Enemies: 2 Overgrown Guardians with Patrol Waypoints ──
+            // ── 6. Enemies: 2 Overgrown Guardians with Patrol Waypoints ──
             CreateGuardianEnemy("OvergrownGuardian_01", new Vector3(-3.5f, 0.55f, 19f),
                 new[] { new Vector3(-5f, 0.55f, 19f), new Vector3(0f, 0.55f, 19f) },
                 controller, matEnemy, envRoot);
@@ -308,17 +304,9 @@ namespace EchoesOfTheLost.EditorTools
                 new[] { new Vector3(5.5f, 0.55f, 12f), new Vector3(5.5f, 0.55f, 19f) },
                 controller, matEnemy, envRoot);
 
-            // ── 8. Player (Kael) ──
+            // ── 7. Player (Kael) ──
             var player = new GameObject("Player") { tag = "Player" };
             player.transform.position = new Vector3(0f, 0.05f, 0f);
-
-            var model = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            model.name = "Model";
-            model.transform.SetParent(player.transform, false);
-            model.transform.localPosition = new Vector3(0f, 1f, 0f);
-            model.GetComponent<Renderer>().sharedMaterial = matPlayer;
-            Object.DestroyImmediate(model.GetComponent<Collider>());
-            model.SetActive(true);
 
             var rb = player.AddComponent<Rigidbody>();
             rb.mass = 1f;
@@ -341,11 +329,7 @@ namespace EchoesOfTheLost.EditorTools
             player.AddComponent<InventoryManager>();
             player.AddComponent<ProgressionSystem>();
 
-            var combat = player.AddComponent<CombatManager>();
-            combat.enabled = true;
-            SetLayerMask(combat, "_hitLayerMask", -1);
-
-            // ── 9. Main Camera & Orbit Follow ──
+            // ── 8. Main Camera & Orbit Follow ──
             var camGO = new GameObject("Main Camera") { tag = "MainCamera" };
             camGO.AddComponent<Camera>();
             camGO.AddComponent<AudioListener>();
@@ -754,37 +738,6 @@ namespace EchoesOfTheLost.EditorTools
             for (int i = 0; i < lines.Length; i++)
                 linesProp.GetArrayElementAtIndex(i).stringValue = lines[i];
             so.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static void CreateElderMarenNPC(Vector3 pos, AnimatorController controller, Material mat)
-        {
-            var npc = new GameObject("NPC_ElderMaren");
-            npc.transform.position = pos;
-            npc.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-
-            var model = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            model.name = "Model";
-            model.transform.SetParent(npc.transform, false);
-            model.transform.localPosition = new Vector3(0f, 1f, 0f);
-            model.GetComponent<Renderer>().sharedMaterial = mat;
-            Object.DestroyImmediate(model.GetComponent<Collider>());
-
-            var col = npc.AddComponent<CapsuleCollider>();
-            col.center = new Vector3(0f, 1f, 0f);
-            col.height = 2f;
-            col.radius = 0.5f;
-
-            npc.AddComponent<NavMeshAgent>();
-            var anim = npc.AddComponent<Animator>();
-            anim.runtimeAnimatorController = controller;
-
-            var ctrl = npc.AddComponent<NPCController>();
-            var so = new SerializedObject(ctrl);
-            so.FindProperty("_npcId").stringValue = "npc_elder_maren";
-            so.FindProperty("_displayName").stringValue = "Elder Maren";
-            so.FindProperty("_questToOfferId").stringValue = "quest_first_echo";
-            so.ApplyModifiedPropertiesWithoutUndo();
-            npc.SetActive(true);
         }
 
         private static void CreateGuardianEnemy(string name, Vector3 pos, Vector3[] waypoints, AnimatorController controller, Material mat, Transform envRoot)
