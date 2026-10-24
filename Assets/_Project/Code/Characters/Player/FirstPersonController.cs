@@ -7,7 +7,7 @@ namespace EchoesOfTheLost.Characters.Player
     [DisallowMultipleComponent]
     public class FirstPersonController : MonoBehaviour
     {
-        [Header("First-Person Camera & Viewmodel References")]
+        [Header("First-Person Camera References")]
         [SerializeField] private Transform _eyeMountTransform;
         [SerializeField] private Camera _mainCamera;
         [SerializeField] private ThirdPersonCamera _thirdPersonCamera;
@@ -22,9 +22,9 @@ namespace EchoesOfTheLost.Characters.Player
         [SerializeField] [Range(55f, 85f)] private float _baseFirstPersonFov = 64f;
         [SerializeField] [Range(60f, 95f)] private float _sprintFirstPersonFov = 71f;
 
-        [Header("Procedural Head-Bob & Weapon Sway")]
+        [Header("Procedural Head-Bob")]
         [SerializeField] [Range(4f, 18f)] private float _headBobFrequency = 10.5f;
-        [SerializeField] [Range(0.01f, 0.12f)] private float _headBobAmplitude = 0.040f;
+        [SerializeField] [Range(0.01f, 0.12f)] private float _headBobAmplitude = 0.035f;
         [SerializeField] private Vector3 _eyeBaseLocalPosition = new Vector3(0f, 1.68f, 0.12f);
 
         private float _yawDegrees;
@@ -39,6 +39,28 @@ namespace EchoesOfTheLost.Characters.Player
         private void Awake()
         {
             _playerController = GetComponent<PlayerController>();
+            HideAllCharacterModels();
+        }
+
+        private void Start()
+        {
+            HideAllCharacterModels();
+        }
+
+        private void HideAllCharacterModels()
+        {
+            // Luôn ẩn toàn bộ Model nhân vật và kiếm Viewmodel để tập trung ngắm cảnh Map
+            if (_thirdPersonBodyModel != null) _thirdPersonBodyModel.SetActive(false);
+            if (_firstPersonViewModel != null) _firstPersonViewModel.SetActive(false);
+
+            var m = transform.Find("Model");
+            if (m != null) m.gameObject.SetActive(false);
+
+            if (_eyeMountTransform != null)
+            {
+                var vm = _eyeMountTransform.Find("FP_ViewModel_AetherBlade");
+                if (vm != null) vm.gameObject.SetActive(false);
+            }
         }
 
         public void ConfigureReferences(
@@ -56,6 +78,8 @@ namespace EchoesOfTheLost.Characters.Player
 
             if (_eyeMountTransform != null)
                 _eyeMountTransform.localPosition = _eyeBaseLocalPosition;
+
+            HideAllCharacterModels();
         }
 
         private void Update()
@@ -73,12 +97,6 @@ namespace EchoesOfTheLost.Characters.Player
                     float startYaw = _thirdPersonCamera != null ? _thirdPersonCamera.CurrentYaw : transform.eulerAngles.y;
                     float startPitch = _thirdPersonCamera != null ? _thirdPersonCamera.CurrentPitch : 0f;
                     SetFirstPersonMode(!_isFirstPersonActive, startYaw, startPitch);
-
-                    if (UI.HUDController.Instance != null)
-                    {
-                        string modeName = _isFirstPersonActive ? "First-Person View [C]" : "Third-Person Orbit View [V]";
-                        UI.HUDController.Instance.ShowToast($"Camera Mode: {modeName}", 2.0f);
-                    }
                 }
                 else if (kb.vKey.wasPressedThisFrame && _isFirstPersonActive)
                 {
@@ -89,7 +107,7 @@ namespace EchoesOfTheLost.Characters.Player
             if (!_isFirstPersonActive) return;
 
             UpdateFirstPersonLook();
-            UpdateHeadBobAndWeaponSway(Time.deltaTime);
+            UpdateHeadBob(Time.deltaTime);
         }
 
         private void LateUpdate()
@@ -113,11 +131,8 @@ namespace EchoesOfTheLost.Characters.Player
                 }
             }
 
-            if (_thirdPersonBodyModel != null)
-                _thirdPersonBodyModel.SetActive(!enableFirstPerson);
-
-            if (_firstPersonViewModel != null)
-                _firstPersonViewModel.SetActive(enableFirstPerson);
+            // Luôn giữ ẩn cả thân người lẫn vũ khí
+            HideAllCharacterModels();
 
             if (enableFirstPerson)
             {
@@ -153,7 +168,7 @@ namespace EchoesOfTheLost.Characters.Player
             }
         }
 
-        private void UpdateHeadBobAndWeaponSway(float deltaTime)
+        private void UpdateHeadBob(float deltaTime)
         {
             if (_eyeMountTransform == null) return;
 

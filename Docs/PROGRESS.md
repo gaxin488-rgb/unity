@@ -129,26 +129,26 @@
 | Cây Ven Đường & Tán Lá 380 Lá Nhỏ Với Cành Dăm & Khe Nắng (`UpgradeStandaloneSceneTrees` tự động quét thay thế cây rời cũ sang Mesh Sồi uốn lượn; Texture 7 chùm cành gỗ dăm & 380 lá sồi nhỏ tơi xốp chừa khe thoáng bầu trời, chống viền đen alpha bleeding) | ✅ Done | `EnvironmentTextureGenerator.cs`, `TerrainWorldBuilder.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
 | Sửa Lỗi Toàn Diện Điều Khiển, Camera & Bật Lại Nhân Vật/Combat (`InputManager` lia chuột không trễ, `ThirdPersonCamera` xoay mượt `SmoothDampAngle` & auto-lock cursor, `FirstPersonController` đồng bộ góc nhìn mượt khi bấm [C]/[V], `PlayerController` chống tự xoay 180 độ khi đi lùi FP, bật lại Player/Combat/NPC/Quái, chuyển Cây & Hoa ven đường sang Mesh 3D tối ưu) | ✅ Done | `InputManager.cs`, `ThirdPersonCamera.cs`, `FirstPersonController.cs`, `PlayerController.cs`, `UIManager.cs`, `SandboxSceneBuilder.cs`, `Sandbox.unity` |
 | Xóa Bỏ Player Model, CombatManager, NPC Elder Maren & Combat Target Dummy (Dọn dẹp triệt để mesh capsule nhân vật, gỡ bỏ CombatManager, xóa NPC Elder Maren & Mat_ElderMaren, gỡ dummy bia tập khỏi GameplaySystemsBuilder; tách độc lập IDamageable interface đảm bảo compile sạch 0 lỗi và scene Sandbox tinh gọn) | ✅ Done | `CombatManager.cs` (deleted), `CombatTargetDummy.cs` (deleted), `Mat_ElderMaren.mat` (deleted), `IDamageable.cs`, `SandboxSceneBuilder.cs`, `GameplaySystemsBuilder.cs`, `Sandbox.unity` |
+| Tinh Gọn HUD Map & Sửa Lỗi Mini-Map (`MiniMapSystem.cs` sửa culling mask chống đen màn hình & tắt FogOfWar; `FirstPersonController.cs` luôn ẩn body model + kiếm viewmodel; `GameplaySystemsBuilder.cs` tắt sinh Wayshrine/Drone/Placeholders/Triggers; `UICanvasCameraBuilder.cs` loại bỏ HP/Stamina/XP/Hotbar/Reticle, chỉ giữ La bàn, Mini-Map sắc nét và Toast thông báo) | ✅ Done | `MiniMapSystem.cs`, `FirstPersonController.cs`, `GameplaySystemsBuilder.cs`, `UICanvasCameraBuilder.cs`, `Sandbox.unity` |
 
 ---
 
-## 🎮 Hướng Dẫn Điều Khiển Trong Play Mode (`Sandbox.unity`)
+## 🎮 Hướng Dẫn Điều Khiển Trong Chế Độ Khám Phá Bản Đồ (`Sandbox.unity`)
 
 - **Di chuyển & Hành động:** `WASD` Di chuyển | `Mouse` Xoay Camera | `Shift` Chạy nhanh (Footstep cadence tăng tốc) | `Space` Nhảy | `Ctrl` Lộn né (Roll)
 - **Góc nhìn Camera & Góc nhìn Thứ Nhất:**
-  - `C`: **Bật/Tắt Góc nhìn Thứ Nhất (First-Person View)** — ngắm trực diện với kiếm Solenne Aether Blade trên tay phải, tâm ngắm và chuyển động nhấp nhô đầu (Head-bob).
+  - `C`: **Bật/Tắt Góc nhìn Thứ Nhất (First-Person View)** — góc nhìn trực diện quang đãng không bị che khuất bởi model hay kiếm, có chuyển động nhấp nhô đầu (Head-bob).
   - `V`: **Đổi 3 góc nhìn Camera Thứ Ba** (`Exploration` / `Close Action` / `Panoramic Tactical`)
   - `Con lăn chuột (Scroll)`: Phóng to / Thu nhỏ khoảng cách Camera Orbit
-- **Chiến đấu & Âm thanh:** `Chuột Trái (LMB)` Đánh thường (Combo 4 đòn với tiếng chém vút gió & lướt người) | `Chuột Phải (RMB)` Đánh mạnh (Heavy Attack) | Đánh vào **Combat Target Dummy** để thử nghiệm co giãn hoạt ảnh & âm thanh trúng đòn
-- **Tương tác:** `E` Kích hoạt **Solenne Aether Wayshrine** (chuỗi Coroutine năng lượng & drone quét), trò chuyện với **Elder Maren**, hoặc giải mã **Echo Crystals**
+- **Giao diện Khám Phá (HUD):**
+  - **La bàn đỉnh màn hình (Top-Center):** Hiển thị hướng đi (N, S, E, W) và độ góc thời gian thực.
+  - **Mini-Map góc phải (Top-Right):** Radar nhìn từ trên cao 65m, hiển thị rõ ràng địa hình, đường đi và tán cây cối, mũi tên theo hướng nhìn.
+  - **Bảng hướng dẫn góc trái (Bottom-Left):** Gợi ý phím tắt nhanh.
 - **Chu kỳ Thời gian & Ánh sáng Nhanh:**
   - `F1`: Bình minh (06:30 AM)
   - `F2`: Giữa trưa (12:00 PM)
   - `F3`: Hoàng hôn (06:15 PM — xem bóng đổ mềm dài tuyệt đẹp)
   - `F4`: Nửa đêm (00:00 AM — ánh trăng bạc soi thung lũng)
-- **Giao diện (UI Modals):**
-  - `Tab` hoặc `I`: Mở **Túi Đồ & Trang Bị (Inventory)**
-  - `J`: Mở **Nhật Ký Nhiệm Vụ (Quest Journal)**
-  - `K`: Mở **Bảng Nhân Vật, Kỹ Năng & Danh Vọng (Character & Factions)**
-  - `Esc`: Mở **Menu Tạm Dừng & Điều Khiển Thế Giới (World Sandbox Controls)**
+- **Giao diện Tạm dừng & Menu:**
+  - `Esc`: Mở **Menu Điều Khiển Thế Giới (World Sandbox Controls)** để tùy chỉnh thời gian và thời tiết.
 - **Lưu / Tải nhanh:** `F5` Quick Save | `F9` Quick Load

@@ -1,28 +1,23 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-// ============================================================
-//  MiniMapSystem — Render-texture minimap with fog of war
-//  Attach to: Dedicated minimap camera GameObject
-// ============================================================
 namespace EchoesOfTheLost.UI
 {
     public class MiniMapSystem : Utils.Singleton<MiniMapSystem>
     {
         [Header("Camera")]
         [SerializeField] private Camera _miniMapCamera;
-        [SerializeField] private float _cameraHeight = 200f;
-        [SerializeField] private float _orthographicSize = 75f;   // visible radius
-        [SerializeField] private LayerMask _miniMapLayer;
+        [SerializeField] private float _cameraHeight = 65f;
+        [SerializeField] private float _orthographicSize = 32f;
+        [SerializeField] private LayerMask _miniMapLayer = ~0;
 
         [Header("Render Texture")]
         [SerializeField] private RenderTexture _renderTexture;
         [SerializeField] private int _textureResolution = 256;
 
         [Header("Fog of War")]
-        [Tooltip("Total world edge length in units (grid width * chunk size). Must be > 0.")]
         [SerializeField] private float _worldSize = 5000f;
-        [SerializeField] private bool _enableFogOfWar = true;
+        [SerializeField] private bool _enableFogOfWar = false;
         [SerializeField] private Texture2D _fogTexture;
         [SerializeField] private float _revealRadius = 80f;
         [SerializeField] private Color _fogColor = new Color(0f, 0f, 0f, 0.85f);
@@ -32,9 +27,8 @@ namespace EchoesOfTheLost.UI
         [SerializeField] private RectTransform _playerIconRect;
 
         [Header("Rotation")]
-        [SerializeField] private bool _rotateWithPlayer = true;
+        [SerializeField] private bool _rotateWithPlayer = false;
 
-        // ── State ─────────────────────────────────────────────
         private Dictionary<string, RectTransform> _mapMarkers = new Dictionary<string, RectTransform>();
         private HashSet<Vector2Int> _revealedCells = new HashSet<Vector2Int>();
         private const int FOG_RESOLUTION = 128;
@@ -44,7 +38,7 @@ namespace EchoesOfTheLost.UI
             base.Awake();
 
             if (_miniMapCamera == null)
-                _miniMapCamera = GetComponentInChildren<Camera>();
+                _miniMapCamera = GetComponent<Camera>() ?? GetComponentInChildren<Camera>();
 
             SetupMiniMapCamera();
             SetupFogOfWar();
@@ -59,10 +53,6 @@ namespace EchoesOfTheLost.UI
                 var go = GameObject.FindGameObjectWithTag("Player");
                 if (go != null) _player = go.transform;
             }
-
-            // Subscribe to POI discovery
-            if (Core.ServiceLocator.TryGet<World.POIManager>(out var poi))
-                poi.OnPOIDiscovered += OnPOIDiscovered;
         }
 
         private void LateUpdate()
@@ -71,8 +61,6 @@ namespace EchoesOfTheLost.UI
             FollowPlayer();
             UpdateFogOfWar();
         }
-
-        // ── Camera Setup ─────────────────────────────────────
 
         private void SetupMiniMapCamera()
         {
@@ -84,45 +72,44 @@ namespace EchoesOfTheLost.UI
                 _renderTexture.filterMode = FilterMode.Bilinear;
             }
 
+            // If _miniMapLayer was left unconfigured (0), render everything except UI (layer 5)
+            int mask = _miniMapLayer.value == 0 ? ~(1 << 5) : (_miniMapLayer.value & ~(1 << 5));
+
             _miniMapCamera.targetTexture = _renderTexture;
             _miniMapCamera.orthographic = true;
             _miniMapCamera.orthographicSize = _orthographicSize;
-            _miniMapCamera.cullingMask = _miniMapLayer;
+            _miniMapCamera.nearClipPlane = 1f;
+            _miniMapCamera.farClipPlane = 200f;
+            _miniMapCamera.cullingMask = mask;
             _miniMapCamera.clearFlags = CameraClearFlags.SolidColor;
-            _miniMapCamera.backgroundColor = new Color(0.1f, 0.1f, 0.1f, 1f);
+            _miniMapCamera.backgroundColor = new Color(0.18f, 0.34f, 0.16f, 1f);
         }
 
         private void FollowPlayer()
         {
             if (_miniMapCamera == null) return;
 
-            // Follow player XZ
             Vector3 camPos = _player.position;
             camPos.y = _player.position.y + _cameraHeight;
             _miniMapCamera.transform.position = camPos;
 
-            // Rotate with player (or keep north-up)
             if (_rotateWithPlayer)
                 _miniMapCamera.transform.rotation = Quaternion.Euler(90f, _player.eulerAngles.y, 0f);
             else
                 _miniMapCamera.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
 
-            // Update player icon direction
-            if (_playerIconRect != null && _rotateWithPlayer)
-                _playerIconRect.localEulerAngles = Vector3.zero;
-            else if (_playerIconRect != null)
-                _playerIconRect.localEulerAngles = new Vector3(0f, 0f, -_player.eulerAngles.y);
+            if (_playerIconRect != null)
+            {
+                float yaw = Camera.main != null ? Camera.main.transform.eulerAngles.y : _player.eulerAngles.y;
+                _playerIconRect.localEulerAngles = _rotateWithPlayer ? Vector3.zero : new Vector3(0f, 0f, -yaw);
+            }
         }
-
-        // ── Fog of War ────────────────────────────────────────
 
         private void SetupFogOfWar()
         {
             if (!_enableFogOfWar) return;
 
             _fogTexture = new Texture2D(FOG_RESOLUTION, FOG_RESOLUTION, TextureFormat.RGBA32, false);
-
-            // Fill with fog
             Color[] pixels = new Color[FOG_RESOLUTION * FOG_RESOLUTION];
             for (int i = 0; i < pixels.Length; i++) pixels[i] = _fogColor;
             _fogTexture.SetPixels(pixels);
@@ -133,10 +120,8 @@ namespace EchoesOfTheLost.UI
         {
             if (!_enableFogOfWar || _fogTexture == null || _player == null) return;
 
-            // Convert world pos to fog texture cell
             Vector2Int cell = WorldToFogCell(_player.position);
-            int revealRadius = Mathf.RoundToInt(_revealRadius / (_worldSize / FOG_RESOLUTION));
-            revealRadius = Mathf.Clamp(revealRadius, 1, 20);
+            int revealRadius = Mathf.Clamp(Mathf.RoundToInt(_revealRadius / (_worldSize / FOG_RESOLUTION)), 1, 20);
 
             bool changed = false;
             for (int x = cell.x - revealRadius; x <= cell.x + revealRadius; x++)
@@ -164,32 +149,11 @@ namespace EchoesOfTheLost.UI
                 Mathf.Clamp(Mathf.FloorToInt(worldPos.x / _worldSize * FOG_RESOLUTION), 0, FOG_RESOLUTION - 1),
                 Mathf.Clamp(Mathf.FloorToInt(worldPos.z / _worldSize * FOG_RESOLUTION), 0, FOG_RESOLUTION - 1));
 
-        // ── Markers ──────────────────────────────────────────
-
-        public void AddMarker(string markerId, RectTransform iconPrefab, Vector3 worldPos)
-        {
-            if (_mapMarkers.ContainsKey(markerId)) return;
-            _mapMarkers[markerId] = iconPrefab;
-        }
-
-        public void RemoveMarker(string markerId) => _mapMarkers.Remove(markerId);
-
-        private void OnPOIDiscovered(World.PointOfInterest poi)
-        {
-            // Add POI icon to minimap
-            Debug.Log($"[MiniMap] POI discovered: {poi.displayName}");
-        }
-
-        // ── Public API ───────────────────────────────────────
-
         public RenderTexture GetMiniMapTexture() => _renderTexture;
         public void SetZoom(float size)
         {
-            _orthographicSize = Mathf.Clamp(size, 30f, 200f);
+            _orthographicSize = Mathf.Clamp(size, 18f, 150f);
             if (_miniMapCamera != null) _miniMapCamera.orthographicSize = _orthographicSize;
         }
-
-        public void ZoomIn() => SetZoom(_orthographicSize - 10f);
-        public void ZoomOut() => SetZoom(_orthographicSize + 10f);
     }
 }
