@@ -211,7 +211,6 @@ namespace EchoesOfTheLost.EditorTools
             var matCrystal = envMats.Crystal;
 
             var matPlayer = CreateOrLoadMaterial("Mat_Player.mat", new Color(0.20f, 0.55f, 0.90f));
-            var matEnemy = CreateOrLoadMaterial("Mat_Guardian.mat", new Color(0.82f, 0.24f, 0.24f));
 
             // ── Create ScriptableObject Assets ──
             var questFirstEcho = CreateOrLoadQuestAsset();
@@ -275,34 +274,10 @@ namespace EchoesOfTheLost.EditorTools
             var envRoot = new GameObject("Environment_VerdaWilds").transform;
             BuildRichEnvironment(envRoot, envMats, matGrass, matGrassTuft, matEarth, matRoad, matRock, matStone, matMountain, matTreeTrunk, matTreeLeaves);
 
-            // ── 4. Solenne Echo Crystals (Collectibles / Lore Nodes) ──
-            CreateEchoCrystal("EchoCrystal_West", envRoot, new Vector3(-4.5f, 1.6f, 15f), matRock, matCrystal,
-                new[]
-                {
-                    "[ECHO RECORD #012 - VERDA WATCHTOWER]: The biological guardians have overgrown their neural limiters.",
-                    "[ECHO RECORD #012]: Anyone reading this—do not let the Void Seekers reach the Central Spire!"
-                });
-
-            CreateEchoCrystal("EchoCrystal_East", envRoot, new Vector3(4.5f, 1.6f, 18f), matRock, matCrystal,
-                new[]
-                {
-                    "[ECHO RECORD #019 - ARCHIVIST SOLENNE]: We built the Unraveling protocol as a shield, not a weapon.",
-                    "[ECHO RECORD #019]: Seek the three Resonance Cores if you wish to restore Aethara."
-                });
-
-            // ── 5. POI Manager with Watchtower Ruin POI ──
+            // [Đã xóa EchoCrystal, NPC Elder Maren và 2 OvergrownGuardian để chỉ tập trung vào Map]
             var poiGO = new GameObject("POIManager");
             var poiMgr = poiGO.AddComponent<POIManager>();
             ConfigureWatchtowerPOI(poiMgr);
-
-            // ── 6. Enemies: 2 Overgrown Guardians with Patrol Waypoints ──
-            CreateGuardianEnemy("OvergrownGuardian_01", new Vector3(-3.5f, 0.55f, 19f),
-                new[] { new Vector3(-5f, 0.55f, 19f), new Vector3(0f, 0.55f, 19f) },
-                controller, matEnemy, envRoot);
-
-            CreateGuardianEnemy("OvergrownGuardian_02", new Vector3(5.5f, 0.55f, 14f),
-                new[] { new Vector3(5.5f, 0.55f, 12f), new Vector3(5.5f, 0.55f, 19f) },
-                controller, matEnemy, envRoot);
 
             // ── 7. Player (Kael) ──
             var player = new GameObject("Player") { tag = "Player" };
